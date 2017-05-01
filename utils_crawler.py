@@ -11,7 +11,7 @@ from posixpath import basename
 
 import threading
 
-max_thread = 100
+max_thread = 10
 sema = threading.Semaphore(max_thread)
 lock = threading.Lock()
 
@@ -76,7 +76,10 @@ def scrape(base_url, folderName, scrapePattern):
 	# 	th.join()
 
 	# scrape method #2 - image page -> image
-	for curr_img in reversed(xrange(100000, 2064684)):
+	# for curr_img in reversed(xrange(1000000, 1248000)):
+	for curr_img in reversed(xrange(1000000, 1248510)):
+		if os.path.isfile(os.path.join(folderName, '%d.jpg'%curr_img)):
+			continue
 		sema.acquire(True)
 		url = '%s%d' %(base_url,curr_img)
 
@@ -109,7 +112,7 @@ if __name__ == "__main__":
 
 	# make the directory for the created files
 	try:
-		os.mkdir(args.folderName)
+		os.makedirs(args.folderName)
 	except:
 		pass
 
