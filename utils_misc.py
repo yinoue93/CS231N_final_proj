@@ -6,17 +6,11 @@ import numpy as np
 import re
 import h5py
 
+import constants
+
 from shutil import copyfile
 from utils_rgb2line import loadImg,makeDir
 from scipy.misc import imread,imsave
-
-POOL_WORKER_COUNT = 6
-
-REDUCED_R_MEAN = 167
-REDUCED_G_MEAN = 153
-REDUCED_B_MEAN = 147
-LINE_MEAN = 219
-BINARY_MEAN = 225
 
 def getBWPics():
 	folderName = 'test_scraped'
@@ -93,7 +87,11 @@ def numpy2jpg(outputFname, arr, meanVal=0):
 
 	imsave(outputFname, outputImg)
 
-def h52numpy(hdf5Filename, outputDir='', checkMean=False):
+def h52numpy(hdf5Filename, outputDir='', checkMean=False, batch_sz=1):
+	"""
+	Returns a shuffled list of input and output data, with each element of the list
+	numpy array of shape (batch_sz, H, W, C)
+	"""
 	if outputDir:
 		makeDir(outputDir)
 
@@ -107,10 +105,20 @@ def h52numpy(hdf5Filename, outputDir='', checkMean=False):
 	inData = []
 	outData = []
 	with h5py.File(hdf5Filename,'r') as hf:
-		for key in hf.keys():
+		keys = hf.keys()
+		random.shuffle(keys)
+
+		tmpIn = np.empty(shape=(batch_sz, IMG_DIM, IMG_DIM, 1), dtype=int)
+		tmpOut = np.empty(shape=(batch_sz, IMG_DIM, IMG_DIM, 3), dtype=int)
+		for i,key in enumerate(keys):
+			indx = i%batch_sz
 			data = hf.get(key)
-			inData.append(data[:,:,0].astype(int) - input_mean)
-			outData.append(data[:,:,1:].astype(int) - [REDUCED_R_MEAN,REDUCED_G_MEAN,REDUCED_B_MEAN])
+			tmpIn[indx,:,:,:] = data[:,:,0].astype(int) - input_mean
+			tmpOut[indx,:,:,:] = data[:,:,1:].astype(int) - [REDUCED_R_MEAN,REDUCED_G_MEAN,REDUCED_B_MEAN]
+
+			if indx==batch_sz-1:
+				inData.append(tmpIn)
+				outData.append(tmpOut)
 
 			if outputDir:
 				numpy2jpg(os.path.join(outputDir, key+'_in.png'), data[:,:,0])
