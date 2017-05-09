@@ -6,6 +6,8 @@ import time
 import re
 from multiprocessing import Pool
 
+from utils_misc import makeDir
+
 IMG_SZ = 256.0
 BW_THRESHOLD = 20
 POOL_WORKER_COUNT = 6
@@ -17,13 +19,38 @@ neiborhood8 = np.array([[1, 1, 1],
 						[1, 1, 1]],
 						np.uint8)
 
+def getBWPics():
+	folderName = 'test_scraped'
+	outfolder = 'bw_test'
+	makeDir(outfolder)
+	num_imgs = 100
+
+	imgList = [os.path.join(folderName, filename) for filename in os.listdir(folderName)]
+	random.shuffle(imgList)
+
+	counter = 0
+	for i,imgPath in enumerate(imgList):
+		try:
+			imgs = loadImg(imgPath)
+		except:
+			continue
+		if not len(imgs):
+			counter += 1
+			print(imgPath)
+			copyfile(imgPath, imgPath.replace(folderName,outfolder))
+
+			if counter==num_imgs:
+				break
+
+	print(counter/float(i))
+
 def loadImg(imgPath, verbose=False):
 	img = cv2.imread(imgPath, cv2.IMREAD_COLOR)
 
 	# is the picture dimension at least IMG_SZ for both dimensions?
 	if img.shape[0]<IMG_SZ or img.shape[1]<IMG_SZ:
 		if verbose:
-			print imgPath+' rejected: too small'
+			print(imgPath+' rejected: too small')
 		return []
 
 	h,w,c = img.shape
@@ -51,19 +78,12 @@ def loadImg(imgPath, verbose=False):
 		mean,std = cv2.meanStdDev(im_hsv)
 		if mean[1]<BW_THRESHOLD:
 			if verbose:
-				print '%d of %s rejected: too little colors' %(i,imgPath)
+				print('%d of %s rejected: too little colors' %(i,imgPath))
 			continue
 
 		rgb_imgs.append(im)
 	
 	return rgb_imgs
-
-def makeDir(dirname):
-	# make the directory for the created files
-	try:
-		os.makedirs(dirname)
-	except:
-		pass
 
 def processPic(dataPack):
 	try:
@@ -74,7 +94,7 @@ def processPic(dataPack):
 		outPath_line = os.path.join(inDir+'_processed_line', filename)
 		outPath_binary = os.path.join(inDir+'_processed_binary', filename)
 
-		# print imgPath
+		# print(imgPath)
 
 		# load the image
 		imgs = loadImg(imgPath)
@@ -119,7 +139,7 @@ def processPic(dataPack):
 
 			i += 1
 	except:
-		print filename
+		print(filename)
 		
 
 def preprocessData(folderName):
@@ -139,14 +159,14 @@ def preprocessData(folderName):
 	for indx in rmIndx:
 		del filenames[indx]
 
-	print 'Done pruning out the processed files...'
+	print('Done pruning out the processed files...')
 
 	p = Pool(POOL_WORKER_COUNT)
 	mapList = [(folderName, str(filename)+'.jpg') for filename in filenames]
 	# mapList = (mapList[0],)
 	p.map(processPic, mapList)
 
-	print 'done...'
+	print('done...')
 
 if __name__ == "__main__":
 	preprocessData('small_scraped')

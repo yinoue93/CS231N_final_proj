@@ -1,41 +1,25 @@
 import random
 import os
-import cv2
 import sys
 import numpy as np
 import re
 import h5py
+import scipy
 
-import constants
+from constants import *
 
 from shutil import copyfile
-from utils_rgb2line import loadImg,makeDir
-from scipy.misc import imread,imsave
+from scipy.misc import imread,imsave,toimage
 
-def getBWPics():
-	folderName = 'test_scraped'
-	outfolder = 'bw_test'
-	makeDir(outfolder)
-	num_imgs = 100
+def makeDir(dirname):
+	# make the directory for the created files
+	try:
+		os.makedirs(dirname)
+	except:
+		pass
 
-	imgList = [os.path.join(folderName, filename) for filename in os.listdir(folderName)]
-	random.shuffle(imgList)
-
-	counter = 0
-	for i,imgPath in enumerate(imgList):
-		try:
-			imgs = loadImg(imgPath)
-		except:
-			continue
-		if not len(imgs):
-			counter += 1
-			print imgPath
-			copyfile(imgPath, imgPath.replace(folderName,outfolder))
-
-			if counter==num_imgs:
-				break
-
-	print counter/float(i)
+def printSeparator(title):
+	print('\n' + '-'*25 + title + '-'*25)
 
 def findMean(dataDir):
 	m = 0
@@ -47,7 +31,7 @@ def findMean(dataDir):
 		avgR,avgG,avgB = 0,0,0
 		for i,fname in enumerate(fnames):
 			if i%int(fnameLen*0.1)==1:
-				print '. R: %f, G: %f, B: %f' %(avgR*fnameLen/i, avgG*fnameLen/i, avgB*fnameLen/i)
+				print('. R: %f, G: %f, B: %f' %(avgR*fnameLen/i, avgG*fnameLen/i, avgB*fnameLen/i))
 			imgs = imread(dataDir+'raw_processed_'+mod+'\\'+fname)
 			if len(imgs.shape)==3:
 				avgR += np.mean(imgs[:,:,0])/fnameLen
@@ -56,10 +40,10 @@ def findMean(dataDir):
 			else:
 				avgR += np.mean(imgs[:,:])/fnameLen
 
-		print mod
-		print 'R: %f' % avgR
-		print 'G: %f' % avgG
-		print 'B: %f' % avgB
+		print(mod)
+		print('R: %f' % avgR)
+		print('G: %f' % avgG)
+		print('B: %f' % avgB)
 
 
 #--------------------------H5 MODULES---------------------------------
@@ -77,15 +61,25 @@ def jpg2H5(dataPack):
 			hf.create_dataset(filename.replace('.jpg',''), 
 							  data=img)
 
-def numpy2jpg(outputFname, arr, meanVal=0):
+def numpy2jpg(outputFname, arr, meanVal=0, verbose=False):
 	if meanVal==0:
 		outputImg = arr
-	elif len(arr.shape)==3:
+	elif arr.shape[2]==3:
 		outputImg = arr + [REDUCED_R_MEAN,REDUCED_G_MEAN,REDUCED_B_MEAN]
 	else:
 		outputImg = arr + meanVal
 
-	imsave(outputFname, outputImg)
+	# if verbose, print out the image's mean values
+	if verbose:
+		print(outputFname)
+		if len(arr.shape)==2:
+			print(np.mean(outputImg))
+		else:
+			print(np.mean(outputImg[:,:,0]))
+			print(np.mean(outputImg[:,:,1]))
+			print(np.mean(outputImg[:,:,2]))
+
+	toimage(outputImg, cmin=0, cmax=255).save(outputFname)
 
 def h52numpy(hdf5Filename, outputDir='', checkMean=False, batch_sz=1):
 	"""
@@ -104,21 +98,28 @@ def h52numpy(hdf5Filename, outputDir='', checkMean=False, batch_sz=1):
 	count = 0
 	inData = []
 	outData = []
+	fileNames = []
 	with h5py.File(hdf5Filename,'r') as hf:
-		keys = hf.keys()
+		keys = list(hf.keys())
 		random.shuffle(keys)
 
 		tmpIn = np.empty(shape=(batch_sz, IMG_DIM, IMG_DIM, 1), dtype=int)
 		tmpOut = np.empty(shape=(batch_sz, IMG_DIM, IMG_DIM, 3), dtype=int)
+		tmpNames = [None]*batch_sz
 		for i,key in enumerate(keys):
 			indx = i%batch_sz
 			data = hf.get(key)
-			tmpIn[indx,:,:,:] = data[:,:,0].astype(int) - input_mean
+
+			tmpIn[indx,:,:,0] = data[:,:,0].astype(int) - input_mean
 			tmpOut[indx,:,:,:] = data[:,:,1:].astype(int) - [REDUCED_R_MEAN,REDUCED_G_MEAN,REDUCED_B_MEAN]
+			tmpNames[indx] = key.replace('\\','/')
+			if '.jpg' not in tmpNames[indx]:
+				tmpNames[indx] += '.jpg'
 
 			if indx==batch_sz-1:
 				inData.append(tmpIn)
 				outData.append(tmpOut)
+				fileNames.append(tmpNames)
 
 			if outputDir:
 				numpy2jpg(os.path.join(outputDir, key+'_in.png'), data[:,:,0])
@@ -133,16 +134,16 @@ def h52numpy(hdf5Filename, outputDir='', checkMean=False, batch_sz=1):
 				count += 1
 
 	if checkMean:
-		print count
-		print meanTotal
-		print 'Means: ' + str(meanTotal/count)
+		print(count)
+		print(meanTotal)
+		print('Means: ' + str(meanTotal/count))
 
-	return inData,outData
+	return inData, outData, fileNames
 
 #--------------------------END H5 MODULES---------------------------------
 
 
-import Image
+from PIL import Image
 def cleanUpDatasetWorker(dataPack):
 	dataDir,filename = dataPack
 	outfolder = 'to_be_removed'
@@ -154,7 +155,7 @@ def cleanUpDatasetWorker(dataPack):
 		img.load()
 		f.close() # release the memory
 	except:
-		print imgPath
+		print(imgPath)
 		f.close() # release the memory
 		copyfile(imgPath, os.path.join(outfolder, filename))
 		os.remove(imgPath)
@@ -193,7 +194,7 @@ def zipDirectory(dataDir, outputDirName=None, zipFileSz=1024, originalDir=None, 
 	if outputDirName==None:
 		outputDirName = '%s_compressed' % dataDir
 
-	print "Zipping up %s to %s" %(dataDir,outputDirName)
+	print("Zipping up %s to %s" %(dataDir,outputDirName))
 
 	makeDir(outputDirName)
 
@@ -209,7 +210,7 @@ def zipDirectory(dataDir, outputDirName=None, zipFileSz=1024, originalDir=None, 
 
 		if currSz > (zipFileSz<<20):
 			if zipNum%10==0:
-				print '.'
+				print('.')
 
 			fileID = zipNum if overwrite else (zipNum+len(os.listdir(outputDirName)))
 			toDir = '%s/compressed_%d' % (outputDirName, fileID)
@@ -225,7 +226,7 @@ def zipDirectory(dataDir, outputDirName=None, zipFileSz=1024, originalDir=None, 
 		toDir = '%s/compressed_%d' % (outputDirName, fileID)
 		dataPacks.append((dataDir, originalDir, zipNames, toDir))
 
-	print 'Processes dispatched...'
+	print('Processes dispatched...')
 
 	compress_func = zipper if (originalDir==None) else jpg2H5
 	p = Pool(POOL_WORKER_COUNT)
@@ -253,9 +254,9 @@ def unzipDirectory(dataDir, outputDir):
 	p.map(unzipper, dataPacks)
 
 def load_sample(dataDir):
-	print 'Unzipping the directory %s' % dataDir
+	print('Unzipping the directory %s' % dataDir)
 	unzipDirectory(dataDir)
-	print 'Unzipping successful....'
+	print('Unzipping successful....')
 
 #--------------------------END ZIPPING/UNZIPPING MODULE---------------------------------
 
