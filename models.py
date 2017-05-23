@@ -30,9 +30,9 @@ class Unet(object):
 
         for layerName in self.config.layer_keys:
             layerParams = self.config.layer_params[layerName]
-            currLayer, W, b = conv_relu(currLayer, layerParams, is_train=self.is_train, name=layerName, verbose=self.verbose)
+            currLayer = conv_relu(currLayer, layerParams, is_train=self.is_train, name=layerName, verbose=self.verbose)
 
-            self.layers[layerName], self.params[layerName+'_W'], self.params[layerName+'_b'] = currLayer, W, b
+            self.layers[layerName] = currLayer
 
         self.layers['output'] = self.layers[layerName]
 

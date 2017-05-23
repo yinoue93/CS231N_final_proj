@@ -3,42 +3,17 @@ import tensorflow as tf
 
 #-----------------------Convolution Layers Implementations-------------------------
 
-def conv_layer(inLayer, filterSz, last_C, curr_C, stride, name=None):
-    filterVar = tf.get_variable(name=name+'_weight', shape=[filterSz, filterSz, last_C, curr_C],
-                                initializer=tf.contrib.layers.xavier_initializer())
-    strides = [1, stride, stride, 1]
+def conv_layer(inLayer, numC, filterSz, stride, dilation, name=None):
+    dil = (1,1) if dilation==None else (dilation, dilation)
+    conv_out = tf.layers.conv2d(inLayer, filters=numC, kernel_size=filterSz, strides=(stride,stride), 
+                                padding='SAME', activation=tf.nn.relu, dilation_rate=dil, name=name)
+    return conv_out
 
-    convLayer = tf.nn.conv2d(inLayer, filter=filterVar, strides=strides, padding='SAME')
-
-    return convLayer, filterVar
-
-def atrous_layer(inLayer, filterSz, last_C, curr_C, stride, dilation, name=None):
-    filterVar = tf.get_variable(name=name+'_weight', shape=[filterSz, filterSz, last_C, curr_C],
-                                initializer=tf.contrib.layers.xavier_initializer())
-    strides = [1, stride, stride, 1]
-
-    inLayerShape = inLayer.get_shape().as_list()
-    output_shape = [tf.shape(inLayer)[0], inLayerShape[1], inLayerShape[2], curr_C]
-
-    convLayer = tf.nn.atrous_conv2d(inLayer, filters=filterVar, rate=dilation, padding='SAME')
-    convLayer = tf.reshape(convLayer, shape=output_shape)
-
-    return convLayer, filterVar
-
-def deconv_layer(inLayer, filterSz, last_C, curr_C, H, W, stride, name=None):
-    filterVar = tf.get_variable(name=name+'_weight', shape=[filterSz, filterSz, curr_C, last_C],
-                                initializer=tf.contrib.layers.xavier_initializer())
-    expansion_rate = int(1/stride)
-    strides = [1, expansion_rate, expansion_rate, 1]
-
-    inLayerShape = inLayer.get_shape().as_list()
-    output_shape = [tf.shape(inLayer)[0], inLayerShape[1]*expansion_rate, inLayerShape[2]*expansion_rate, curr_C]
-
-    convLayer = tf.nn.conv2d_transpose(inLayer, filter=filterVar, output_shape=output_shape, 
-                                       strides=strides, padding='SAME')
-    convLayer = tf.reshape(convLayer, shape=output_shape)
-
-    return convLayer, filterVar
+def deconv_layer(inLayer, numC, filterSz, stride, name=None):
+    deconv_out = tf.layers.conv2d_transpose(inLayer, filters=numC, kernel_size=filterSz,
+                                            strides=[stride, stride], padding='SAME',
+                                            activation=tf.nn.relu)
+    return deconv_out
 
 def conv_relu(inLayer, layerParams, is_train, name=None, verbose=True):
     # The order is "NHWC"
@@ -48,31 +23,22 @@ def conv_relu(inLayer, layerParams, is_train, name=None, verbose=True):
                                                     layerParams['stride'], layerParams['bnorm'], layerParams['dilation']
 
     # choose the correct convolution layer
-    if dilation is not None:
-        # atrous (dilation) conv layer
-        convLayer,W = atrous_layer(inLayer, filterSz, last_C, numFilters, stride, dilation, name=name)
-    elif stride<1:
-        # deconv (transpose, fractionally strided) layer
-        convLayer,W = deconv_layer(inLayer, filterSz, last_C, numFilters, H, W, stride, name=name)
-    else:
+    if stride>=1:
         # normal conv layer
-        convLayer,W = conv_layer(inLayer, filterSz, last_C, numFilters, stride, name=name)
-
-    # add the bias term
-    bias = tf.get_variable(name=name+'_bias', shape=numFilters)
-    convLayer = tf.nn.bias_add(convLayer, bias, name=name)
+        convLayer = conv_layer(inLayer, numFilters, filterSz, stride, dilation, name=name)
+    else:
+        # deconv (transpose, fractionally strided) layer
+        convLayer = deconv_layer(inLayer, numFilters, filterSz, int(1/stride), name=name)
 
     if bnorm:
-        convLayer = batch_norm(convLayer, [0,1,2], is_train, name=name+'_bnorm')
-
-    nextLayer = tf.nn.relu(convLayer)
+        convLayer = tf.layers.batch_normalization(convLayer, center=True, scale=True, training=is_train)
 
     if verbose:
         print('Layer name:' + name)
         print(layerParams)
-        print('Layer shape: {0}\n'.format(nextLayer.shape))
+        print('Layer shape: {0}\n'.format(convLayer.shape))
 
-    return nextLayer, W, bias
+    return convLayer
 
 #---------------------------Batchnorm Implementation-------------------------
 def batch_norm(prevLayer, axes, is_train, var_eps=1e-6, name=''):
