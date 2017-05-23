@@ -2,14 +2,14 @@
 POOL_WORKER_COUNT = 6
 
 # dataset image mean constants
-REDUCED_R_MEAN = 167
-REDUCED_G_MEAN = 153
-REDUCED_B_MEAN = 147
-LINE_MEAN = 219
-BINARY_MEAN = 225
+REDUCED_R_MEAN = 167 / 255.0
+REDUCED_G_MEAN = 153 / 255.0
+REDUCED_B_MEAN = 147 / 255.0
+LINE_MEAN = 219 / 255.0
+BINARY_MEAN = 225 / 255.0
 
 # network constants
-BATCH_SIZE = 8
+BATCH_SIZE = 16
 IMG_DIM = 256
 NUM_EPOCHS = 10
 NUM_EPOCHS_HYPERPARAM = 2
@@ -35,12 +35,16 @@ class Config(object):
         # optimizer params
         self.lr = 1e-3
 
+        self.use_fuse = True
+
         # network params
         self.layer_keys = ['conv1_1', 'conv1_2', 'conv2_1', 'conv2_2', 'conv3_1', 'conv3_2', 'conv3_3',
                            'conv4_1', 'conv4_2', 'conv4_3', 'conv5_1', 'conv5_2', 'conv5_3', 
                            'conv6_1', 'conv6_2', 'conv6_3', 'conv7_1', 'conv7_2', 'conv7_3', 
                            'conv8_1', 'conv8_2', 'conv8_3', 'conv9_1', 'conv9_2', 'conv9_3', 
                            'conv10_1', 'conv10_2', 'conv10_3', 'combine_1', 'combine_2', 'combine_3']
+
+        self.fuse_layers = {'conv8_1':'conv3_2', 'conv9_1':'conv2_1', 'conv10_1':'conv1_1'}
 
         self.layer_params = {}
 

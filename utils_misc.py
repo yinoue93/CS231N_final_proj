@@ -65,9 +65,9 @@ def numpy2jpg(outputFname, arr, meanVal=0, verbose=False):
     outputImg = arr[:,:,0] if (len(arr.shape)==3 and arr.shape[2]==1) else arr
 
     if len(outputImg.shape)==2:
-        outputImg = outputImg + meanVal
+        outputImg = 255*(outputImg + meanVal)
     else:
-        outputImg = outputImg + [REDUCED_R_MEAN,REDUCED_G_MEAN,REDUCED_B_MEAN]
+        outputImg = 255*(outputImg + [REDUCED_R_MEAN,REDUCED_G_MEAN,REDUCED_B_MEAN])
 
     # if verbose, print out the image's mean values
     if verbose:
@@ -103,15 +103,15 @@ def h52numpy(hdf5Filename, outputDir='', checkMean=False, batch_sz=1):
         keys = list(hf.keys())
         random.shuffle(keys)
 
-        tmpIn = np.empty(shape=(batch_sz, IMG_DIM, IMG_DIM, 1), dtype=int)
-        tmpOut = np.empty(shape=(batch_sz, IMG_DIM, IMG_DIM, 3), dtype=int)
+        tmpIn = np.empty(shape=(batch_sz, IMG_DIM, IMG_DIM, 1), dtype=float)
+        tmpOut = np.empty(shape=(batch_sz, IMG_DIM, IMG_DIM, 3), dtype=float)
         tmpNames = [None]*batch_sz
         for i,key in enumerate(keys):
             indx = i%batch_sz
             data = hf.get(key)
 
-            tmpIn[indx,:,:,0] = data[:,:,0].astype(int) - input_mean
-            tmpOut[indx,:,:,:] = data[:,:,1:].astype(int) - [REDUCED_R_MEAN,REDUCED_G_MEAN,REDUCED_B_MEAN]
+            tmpIn[indx,:,:,0] = data[:,:,0].astype(int)/255.0 - input_mean
+            tmpOut[indx,:,:,:] = data[:,:,1:].astype(int)/255.0 - [REDUCED_R_MEAN,REDUCED_G_MEAN,REDUCED_B_MEAN]
             tmpNames[indx] = key.replace('\\','/')
             if '.jpg' not in tmpNames[indx]:
                 tmpNames[indx] += '.jpg'
@@ -121,8 +121,8 @@ def h52numpy(hdf5Filename, outputDir='', checkMean=False, batch_sz=1):
                 outData.append(tmpOut)
                 fileNames.append(tmpNames)
 
-                tmpIn = np.empty(shape=(batch_sz, IMG_DIM, IMG_DIM, 1), dtype=int)
-                tmpOut = np.empty(shape=(batch_sz, IMG_DIM, IMG_DIM, 3), dtype=int)
+                tmpIn = np.empty(shape=(batch_sz, IMG_DIM, IMG_DIM, 1), dtype=float)
+                tmpOut = np.empty(shape=(batch_sz, IMG_DIM, IMG_DIM, 3), dtype=float)
                 tmpNames = [None]*batch_sz
 
             if outputDir:

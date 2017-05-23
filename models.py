@@ -32,6 +32,14 @@ class Unet(object):
             layerParams = self.config.layer_params[layerName]
             currLayer = conv_relu(currLayer, layerParams, is_train=self.is_train, name=layerName, verbose=self.verbose)
 
+            # fuse layers if appropriate
+            if self.config.use_fuse and (layerName in self.config.fuse_layers):
+                fuse_target = self.config.fuse_layers[layerName]
+                currLayer = tf.concat([self.layers[fuse_target], currLayer], axis=3)
+                
+                print('Fusing ' + layerName + ' and ' + fuse_target)
+                print('Layer shape: {0}\n'.format(currLayer.shape))
+
             self.layers[layerName] = currLayer
 
         self.layers['output'] = self.layers[layerName]

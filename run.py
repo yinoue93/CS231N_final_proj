@@ -111,7 +111,6 @@ def run_model(modelStr, runMode, ckptDir, dataDir, sampleDir, overrideCkpt, numE
         i_stopped, found_ckpt = utils_runtime.get_checkpoint(overrideCkpt, ckptDir, sess, saver)
 
         file_writer = tf.summary.FileWriter(ckptDir, graph=sess.graph, max_queue=10, flush_secs=30)
-        batch_loss = []
 
         if is_training:
             init_op = tf.global_variables_initializer() # tf.group(tf.initialize_all_variables(), tf.initialize_local_variables())
@@ -126,6 +125,7 @@ def run_model(modelStr, runMode, ckptDir, dataDir, sampleDir, overrideCkpt, numE
         # run the network
         dataset_filenames = utils_runtime.getDataFileNames(dataDir)
         for i in range(i_stopped, numEpochs):
+            batch_loss = []
             printSeparator("Running epoch %d" % i)
             random.shuffle(dataset_filenames)
 
@@ -156,13 +156,13 @@ def run_model(modelStr, runMode, ckptDir, dataDir, sampleDir, overrideCkpt, numE
                     bar.update(count)
                 bar.finish()
 
+            test_loss = np.mean(batch_loss)
+            print("Model {0} loss: {1}".format(runMode, test_loss))
+
             if is_training:
                 # Checkpoint model - every epoch
                 utils_runtime.save_checkpoint(ckptDir, sess, saver, i)
             elif runMode!='sample':
-                test_loss = np.mean(batch_loss)
-                print("Model {0} loss: {1}".format(runMode, test_loss))
-
                 if runMode == 'val':
                     # Update the file for choosing best hyperparameters
                     curFile = open(curModel.config.val_filename, 'a')
