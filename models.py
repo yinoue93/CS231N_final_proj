@@ -103,6 +103,6 @@ class Unet(object):
         out_img = sess.run([self.layers['output']], feed_dict=feed_dict)[0][0,:,:,:]
 
         if imgName!=None:
-            numpy2jpg(imgName, out_img, meanVal=1, verbose=False)
+            numpy2jpg(imgName, out_img, overlay=in_batch[0], meanVal=1, verbose=False)
 
         return out_img

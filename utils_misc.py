@@ -61,13 +61,16 @@ def jpg2H5(dataPack):
             hf.create_dataset(filename.replace('.jpg',''), 
                               data=img)
 
-def numpy2jpg(outputFname, arr, meanVal=0, verbose=False):
+def numpy2jpg(outputFname, arr, overlay=None, meanVal=0, verbose=False):
     outputImg = arr[:,:,0] if (len(arr.shape)==3 and arr.shape[2]==1) else arr
 
     if len(outputImg.shape)==2:
-        outputImg = 255*(outputImg + meanVal)
+        outputImg = (outputImg + meanVal)
     else:
-        outputImg = 255*(outputImg + [REDUCED_R_MEAN,REDUCED_G_MEAN,REDUCED_B_MEAN])
+        outputImg = (outputImg + [REDUCED_R_MEAN,REDUCED_G_MEAN,REDUCED_B_MEAN])
+
+    if overlay!=None:
+        outputImg *= (overlay + LINE_MEAN)
 
     # if verbose, print out the image's mean values
     if verbose:
@@ -80,6 +83,7 @@ def numpy2jpg(outputFname, arr, meanVal=0, verbose=False):
             print(np.mean(outputImg[:,:,2]))
 
     toimage(outputImg, cmin=0, cmax=255).save(outputFname)
+
 
 def h52numpy(hdf5Filename, outputDir='', checkMean=False, batch_sz=1):
     """
@@ -110,8 +114,8 @@ def h52numpy(hdf5Filename, outputDir='', checkMean=False, batch_sz=1):
             indx = i%batch_sz
             data = hf.get(key)
 
-            tmpIn[indx,:,:,0] = data[:,:,0].astype(int)/255.0 - input_mean
-            tmpOut[indx,:,:,:] = data[:,:,1:].astype(int)/255.0 - [REDUCED_R_MEAN,REDUCED_G_MEAN,REDUCED_B_MEAN]
+            tmpIn[indx,:,:,0] = data[:,:,0].astype(int) - input_mean
+            tmpOut[indx,:,:,:] = data[:,:,1:].astype(int) - [REDUCED_R_MEAN,REDUCED_G_MEAN,REDUCED_B_MEAN]
             tmpNames[indx] = key.replace('\\','/')
             if '.jpg' not in tmpNames[indx]:
                 tmpNames[indx] += '.jpg'
@@ -143,6 +147,28 @@ def h52numpy(hdf5Filename, outputDir='', checkMean=False, batch_sz=1):
         print('Means: ' + str(meanTotal/count))
 
     return inData, outData, fileNames
+
+def repackH5Worker(dataPack):
+    fromName, toName, compression = dataPack
+
+    with h5py.File(fromName,'r') as fromHF, h5py.File(toName,'w') as toHF:
+        keys = list(fromHF.keys())
+
+        for key in keys:
+            data = fromHF.get(key)
+            toHF.create_dataset(key, data=data, compression=compression)
+
+def repackH5(dataDir, outputDir, compression='gzip'):
+    makeDir(outputDir)
+
+    dataPacks = []
+    for filename in os.listdir(dataDir):
+        fromName = os.path.join(dataDir, filename)
+        toName = os.path.join(outputDir, filename)
+        dataPacks.append((fromName, toName, compression))
+
+    p = Pool(POOL_WORKER_COUNT)
+    p.map(repackH5Worker, dataPacks)
 
 #--------------------------END H5 MODULES---------------------------------
 

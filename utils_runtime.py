@@ -4,8 +4,11 @@ import random
 import numpy as np
 import shutil
 import re
+import datetime
 
 import tensorflow as tf
+
+from utils_misc import makeDir
 
 def get_checkpoint(override, ckpt_dir, sess, saver):
     # Checkpoint
@@ -30,7 +33,7 @@ def get_checkpoint(override, ckpt_dir, sess, saver):
             i_stopped = 0
     else:
         saver.restore(sess, ckpt_dir)
-        i_stopped = int(ckpt_dir.split('/')[-1].split('-')[-1])
+        i_stopped = int(ckpt_dir.split('/')[-1].split('-')[-1]) + 1
         print("Found checkpoint for epoch ({0})".format(i_stopped))
         found_ckpt = True
 
@@ -52,12 +55,26 @@ def getDataFileNames(fileDir):
     return dataset_filenames
 
 
-def printParamStr(param_key, param):
+def getParamStr(param_key, param):
     param_str = ''
     for i in range(len(param)):
         param_str += param_key[i] + ': ' + str(param[i]) + ', '
-    print(param_str)
+    return param_str
 
+def createLogFile():
+    # create a log file and initialize it with the contents of constants.py
+    makeDir('logs')
+    now = datetime.datetime.now()
+    fileName = 'logs/%s.txt' %(now.strftime("%B_%d_%H_%M_%S"))
+    
+    shutil.copyfile('constants.py', fileName)
+    
+    return fileName
+
+def logToFile(logName, contents):
+    print(contents)
+    with open(logName, 'a+') as f:
+        f.write(contents)
 
 def map_output(outData):
     pass

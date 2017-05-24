@@ -8,8 +8,7 @@ import os
 import random
 import progressbar
 
-import utils_runtime
-
+from utils_runtime import *
 from utils_misc import *
 
 from models import Unet
@@ -19,7 +18,7 @@ from constants import *
 
 # GPU settings
 GPU_CONFIG = tf.ConfigProto()
-GPU_CONFIG.gpu_options.per_process_gpu_memory_fraction = 0.3
+GPU_CONFIG.gpu_options.per_process_gpu_memory_fraction = 0.8
 
 
 def plot_confusion(confusion_matrix, vocabulary, epoch, characters_remove=[], annotate=False):
@@ -102,28 +101,32 @@ def run_model(modelStr, runMode, ckptDir, dataDir, sampleDir, overrideCkpt, numE
     global_step = tf.Variable(0, trainable=False, name='global_step') #tf.contrib.framework.get_or_create_global_step()
     saver = tf.train.Saver(max_to_keep=numEpochs)
     step = 0
+    
+    logName = createLogFile()
 
     printSeparator('Starting TF session')
     with tf.Session(config=GPU_CONFIG) as sess:
         print("Inititialized TF Session!")
 
         # load checkpoint if necessary
-        i_stopped, found_ckpt = utils_runtime.get_checkpoint(overrideCkpt, ckptDir, sess, saver)
+        i_stopped, found_ckpt = get_checkpoint(overrideCkpt, ckptDir, sess, saver)
 
         file_writer = tf.summary.FileWriter(ckptDir, graph=sess.graph, max_queue=10, flush_secs=30)
 
-        if is_training:
-            init_op = tf.global_variables_initializer() # tf.group(tf.initialize_all_variables(), tf.initialize_local_variables())
-            init_op.run()
-        else:
-            # Exit if no checkpoint to test
-            if not found_ckpt:
+        if (not found_ckpt):
+            if is_training:
+                init_op = tf.global_variables_initializer() # tf.group(tf.initialize_all_variables(), tf.initialize_local_variables())
+                init_op.run()
+            else:
+                # Exit if no checkpoint to test]
                 print('Valid checkpoint not found under %s, exiting...' % ckptDir)
                 return
+           
+        if not is_training:
             numEpochs = i_stopped + 1
 
         # run the network
-        dataset_filenames = utils_runtime.getDataFileNames(dataDir)
+        dataset_filenames = getDataFileNames(dataDir)
         for i in range(i_stopped, numEpochs):
             batch_loss = []
             printSeparator("Running epoch %d" % i)
@@ -140,10 +143,11 @@ def run_model(modelStr, runMode, ckptDir, dataDir, sampleDir, overrideCkpt, numE
                 count = 0
                 for in_batch,out_batch,imgName in zip(input_batches, output_batches, imgNames):
                     if modelStr=='trans':
-                        out_batch = utils_runtime.map_output(out_batch)
+                        out_batch = map_output(out_batch)
 
                     if runMode=='sample':
                         out_img = curModel.sample(sess, in_batch, imgName=os.path.join(sampleDir, imgName[0]))
+                        exit(0)
                     else:
                         summary, loss = curModel.run(sess, in_batch, out_batch, is_training)
 
@@ -157,11 +161,11 @@ def run_model(modelStr, runMode, ckptDir, dataDir, sampleDir, overrideCkpt, numE
                 bar.finish()
 
             test_loss = np.mean(batch_loss)
-            print("Model {0} loss: {1}".format(runMode, test_loss))
+            logToFile(logName, "Epoch %d loss: %f" %(i, test_loss))
 
             if is_training:
                 # Checkpoint model - every epoch
-                utils_runtime.save_checkpoint(ckptDir, sess, saver, i)
+                save_checkpoint(ckptDir, sess, saver, i)
             elif runMode!='sample':
                 if runMode == 'val':
                     # Update the file for choosing best hyperparameters
@@ -180,7 +184,7 @@ def run_one_epoch(sess, model, dataset_filenames, modelStr, is_training):
 
         for in_batch,out_batch,imgName in zip(input_batches, output_batches, imgNames):
             if modelStr=='trans':
-                out_batch = utils_runtime.map_output(out_batch)
+                out_batch = map_output(out_batch)
 
             _, loss = model.run(sess, in_batch, out_batch, is_training)
 
@@ -208,6 +212,8 @@ def run_hyperparam(modelStr, numEpochs):
     ps = [lr]
     params = list(itertools.product(*ps))
 
+    logName = createLogFile()
+    
     count = 0
     best_val = 0
     best_param = None
@@ -224,27 +230,27 @@ def run_hyperparam(modelStr, numEpochs):
 
         count += 1
         printSeparator('Running #%d of %d runs...' %(count, len(params)))
-        utils_runtime.printParamStr(param_key, param)
+        print(getParamStr(param_key, param))
         
         with tf.Session(config=GPU_CONFIG) as sess:
             # train the network
-            dataset_filenames = utils_runtime.getDataFileNames(TRAIN_DATA)
+            dataset_filenames = getDataFileNames(TRAIN_DATA)
             for i in range(numEpochs):
                 random.shuffle(dataset_filenames)
                 train_loss = run_one_epoch(sess, curModel, dataset_filenames, modelStr, is_training=True)
                 print('#%d training loss: %f' % (i, train_loss))
 
             # run the trained network on the validation set
-            dataset_filenames = utils_runtime.getDataFileNames(VALIDATION_DATA)
+            dataset_filenames = getDataFileNames(VALIDATION_DATA)
             val_loss = run_one_epoch(sess, curModel, dataset_filenames, modelStr, is_training=False)
             
-            print('train loss: %f, val loss: %f\n' %(train_loss, val_loss))
+            logToFile(logName, 'train loss: %f, val loss: %f\n' %(train_loss, val_loss))
             if best_val<val_loss:
                 best_val = val_loss
                 best_param = param
 
-    print('Best validation accuracy: %f' % best_val)
-    utils_runtime.printParamStr(param_key, best_param)
+    logToFile(logName, 'Best validation accuracy: %f' % best_val)
+    logToFile(logName, getParamStr(param_key, best_param))
 
 
 if __name__ == "__main__":
