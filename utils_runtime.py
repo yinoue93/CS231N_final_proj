@@ -76,9 +76,5 @@ def logToFile(logName, contents):
     with open(logName, 'a+') as f:
         f.write(contents)
 
-def map_output(outData):
-    pass
-    
-
 if __name__ == "__main__":
     pass

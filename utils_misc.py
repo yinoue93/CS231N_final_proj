@@ -9,7 +9,7 @@ import scipy
 from constants import *
 
 from shutil import copyfile
-from scipy.misc import imread,imsave,toimage
+from scipy.misc import imread,imsave,toimage,imresize
 
 def makeDir(dirname):
     # make the directory for the created files
@@ -64,13 +64,14 @@ def jpg2H5(dataPack):
 def numpy2jpg(outputFname, arr, overlay=None, meanVal=0, verbose=False):
     outputImg = arr[:,:,0] if (len(arr.shape)==3 and arr.shape[2]==1) else arr
 
-    if len(outputImg.shape)==2:
-        outputImg = (outputImg + meanVal)
-    else:
-        outputImg = (outputImg + [REDUCED_R_MEAN,REDUCED_G_MEAN,REDUCED_B_MEAN])
+    if meanVal!=None:
+        if len(outputImg.shape)==2:
+            outputImg = (outputImg + meanVal)
+        else:
+            outputImg = (outputImg + [REDUCED_R_MEAN,REDUCED_G_MEAN,REDUCED_B_MEAN])
 
     if overlay!=None:
-        outputImg *= (overlay + LINE_MEAN)
+        outputImg *= (overlay + LINE_MEAN)/255.0
 
     # if verbose, print out the image's mean values
     if verbose:
@@ -85,7 +86,61 @@ def numpy2jpg(outputFname, arr, overlay=None, meanVal=0, verbose=False):
     toimage(outputImg, cmin=0, cmax=255).save(outputFname)
 
 
-def h52numpy(hdf5Filename, outputDir='', checkMean=False, batch_sz=1):
+def gaussianDist(pt1, pt2):
+    std = 0.5
+    sqdist = np.sum((pt1-pt2)**2, axis=1)
+    return np.exp(-sqdist/std)
+
+def map_output(outData, outImgSz):
+    import itertools
+    
+    # resize
+    resizedData = imresize(outData, size=[outImgSz, outImgSz]).astype(int)
+    
+    # create 1-hot vector
+    encoding_sz = outImgSz*outImgSz
+    soft_encoding = np.zeros(shape=(encoding_sz,512))
+    
+    discr_data = resizedData.reshape([encoding_sz, -1]) / 32.0
+    centered = (discr_data%1 - 0.5)
+    
+    discr_data_int = discr_data.astype(int)
+    rval = discr_data_int[:,0]
+    gval = discr_data_int[:,1] << 3
+    bval = discr_data_int[:,2] << 6
+    
+    rs = [(rval, 0), (np.minimum(rval+1, 7), 1),  (np.maximum(rval-1, 0), -1)]
+    gs = [(gval, 0), (np.minimum(gval+8, 56), 1),  (np.maximum(gval-8, 0), -1)]
+    bs = [(bval, 0), (np.minimum(bval+64, 448), 1),  (np.maximum(bval-64, 0), -1)]
+    
+    coords = [rs, gs, bs]
+    params = list(itertools.product(*coords))
+    
+    for (rv, roff),(gv, goff),(bv, boff) in params:    
+        indx_1d = (rv + gv + bv)
+        soft_encoding[range(encoding_sz), indx_1d] += gaussianDist(centered, [roff, goff, boff])
+    
+    # normalize, and clean up for efficient storage
+    soft_encoding = soft_encoding.astype(np.float16)
+    soft_encoding = soft_encoding / np.sum(soft_encoding, axis=1)[:, np.newaxis]
+    soft_encoding[soft_encoding<1e-4] = 0
+    soft_encoding = soft_encoding / np.sum(soft_encoding, axis=1)[:, np.newaxis]
+    
+#    picid = 2500
+#    print(soft_encoding[picid,:])
+#    print(resizedData.reshape([encoding_sz,-1])[picid])
+#    print(discr_data[picid])
+#    print(rval[picid], gval[picid], bval[picid])
+#    print(centered[picid, 0],centered[picid, 1],centered[picid, 2])
+#    indx = (rval[picid] + gval[picid] + bval[picid])
+#    print(indx)
+#    print(soft_encoding[picid,indx])
+#    exit(0)
+    
+    return soft_encoding
+
+
+def h52numpy(hdf5Filename, outputDir='', checkMean=False, batch_sz=1, mod_output=False):
     """
     Returns a shuffled list of input and output data, with each element of the list
     numpy array of shape (batch_sz, H, W, C)
@@ -98,6 +153,8 @@ def h52numpy(hdf5Filename, outputDir='', checkMean=False, batch_sz=1):
     elif 'binary' in hdf5Filename:
         input_mean = BINARY_MEAN
 
+    out_img_shape = (batch_sz, int(IMG_DIM/4)**2, 512) if mod_output else (batch_sz, IMG_DIM, IMG_DIM, 3)
+        
     meanTotal = np.asarray([0]*4)
     count = 0
     inData = []
@@ -108,14 +165,23 @@ def h52numpy(hdf5Filename, outputDir='', checkMean=False, batch_sz=1):
         random.shuffle(keys)
 
         tmpIn = np.empty(shape=(batch_sz, IMG_DIM, IMG_DIM, 1), dtype=float)
-        tmpOut = np.empty(shape=(batch_sz, IMG_DIM, IMG_DIM, 3), dtype=float)
+        tmpOut = np.empty(shape=out_img_shape, dtype=float)
         tmpNames = [None]*batch_sz
         for i,key in enumerate(keys):
             indx = i%batch_sz
-            data = hf.get(key)
-
-            tmpIn[indx,:,:,0] = data[:,:,0].astype(int) - input_mean
-            tmpOut[indx,:,:,:] = data[:,:,1:].astype(int) - [REDUCED_R_MEAN,REDUCED_G_MEAN,REDUCED_B_MEAN]
+            
+            if mod_output:
+                if '_output' in key:
+                    continue
+                    
+                data = hf.get(key)[:]
+                tmpIn[indx,:,:,0] = data.astype(int) - input_mean
+                tmpOut[indx,:,:] = hf.get(key+'_output')
+            else:
+                data = hf.get(key)
+                tmpIn[indx,:,:,0] = data[:,:,0].astype(int) - input_mean
+                tmpOut[indx,:,:,:] = data[:,:,1:].astype(int) - [REDUCED_R_MEAN,REDUCED_G_MEAN,REDUCED_B_MEAN]
+                
             tmpNames[indx] = key.replace('\\','/')
             if '.jpg' not in tmpNames[indx]:
                 tmpNames[indx] += '.jpg'
@@ -126,7 +192,7 @@ def h52numpy(hdf5Filename, outputDir='', checkMean=False, batch_sz=1):
                 fileNames.append(tmpNames)
 
                 tmpIn = np.empty(shape=(batch_sz, IMG_DIM, IMG_DIM, 1), dtype=float)
-                tmpOut = np.empty(shape=(batch_sz, IMG_DIM, IMG_DIM, 3), dtype=float)
+                tmpOut = np.empty(shape=out_img_shape, dtype=float)
                 tmpNames = [None]*batch_sz
 
             if outputDir:
@@ -150,13 +216,19 @@ def h52numpy(hdf5Filename, outputDir='', checkMean=False, batch_sz=1):
 
 def repackH5Worker(dataPack):
     fromName, toName, compression = dataPack
+    print('Working on %s...' % fromName)
 
     with h5py.File(fromName,'r') as fromHF, h5py.File(toName,'w') as toHF:
         keys = list(fromHF.keys())
 
-        for key in keys:
+        for i,key in enumerate(keys):
             data = fromHF.get(key)
-            toHF.create_dataset(key, data=data, compression=compression)
+
+            inData = data[:,:,0]
+            outData = map_output(data[:,:,1:].astype(int), int(IMG_DIM/4))
+            
+            toHF.create_dataset(key, data=inData, compression=compression)
+            toHF.create_dataset(key+'_output', data=outData, compression=compression)
 
 def repackH5(dataDir, outputDir, compression='gzip'):
     makeDir(outputDir)
@@ -165,7 +237,11 @@ def repackH5(dataDir, outputDir, compression='gzip'):
     for filename in os.listdir(dataDir):
         fromName = os.path.join(dataDir, filename)
         toName = os.path.join(outputDir, filename)
-        dataPacks.append((fromName, toName, compression))
+        
+        if (os.path.isfile(toName)) or ('filepart' in fromName):
+            print('Excluding %s, because the file already exists, or is a .filepart...' % toName)
+        else:
+            dataPacks.append((fromName, toName, compression))
 
     p = Pool(POOL_WORKER_COUNT)
     p.map(repackH5Worker, dataPacks)
@@ -310,5 +386,7 @@ if __name__ == "__main__":
     # findMean('D:\\Backups\\CS231N_data\\tmp\\')
     
     # unzipper(('D:\\Backups\\CS231N_data\\scraped\\compressed_26', 'tmp4'))
-
+    
+    repackH5('/home/tbonerocksyinoue/data/line', outputDir='/home/tbonerocksyinoue/data/line_classification', compression='lzf')
+    
     pass

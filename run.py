@@ -11,14 +11,14 @@ import progressbar
 from utils_runtime import *
 from utils_misc import *
 
-from models import Unet
+from models import Unet,ZhangNet
 from argparse import ArgumentParser
 
 from constants import *
 
 # GPU settings
 GPU_CONFIG = tf.ConfigProto()
-GPU_CONFIG.gpu_options.per_process_gpu_memory_fraction = 0.8
+GPU_CONFIG.gpu_options.per_process_gpu_memory_fraction = 0.9
 
 
 def plot_confusion(confusion_matrix, vocabulary, epoch, characters_remove=[], annotate=False):
@@ -86,11 +86,16 @@ def run_model(modelStr, runMode, ckptDir, dataDir, sampleDir, overrideCkpt, numE
     batch_size = 1 if runMode=='sample' else BATCH_SIZE
     numEpochs = numEpochs if is_training else 1
 
+    printSeparator('Initializing %s/reading constants.py' % modelStr)
     input_sz = [IMG_DIM, IMG_DIM, 1]
-    output_sz = [IMG_DIM, IMG_DIM, 3]
-    printSeparator('Initializing Unet/reading constants.py')
-    curModel = Unet(input_sz, output_sz)
-    printSeparator('Building Unet')
+    if modelStr=='unet':
+        output_sz = [IMG_DIM, IMG_DIM, 3]
+        curModel = Unet(input_sz, output_sz)
+    if modelStr=='zhangnet':
+        output_sz = [(IMG_DIM/4)**2, 512]
+        curModel = ZhangNet(input_sz, output_sz)
+        
+    printSeparator('Building ' + modelStr)
     curModel.create_model()
     curModel.metrics()
 
@@ -135,16 +140,14 @@ def run_model(modelStr, runMode, ckptDir, dataDir, sampleDir, overrideCkpt, numE
             for j, data_file in enumerate(dataset_filenames):
                 # Get data
                 print('Reading data in %s...' % data_file)
-                input_batches,output_batches,imgNames = h52numpy(data_file, batch_sz=batch_size)
+                input_batches,output_batches,imgNames = h52numpy(data_file, batch_sz=batch_size, 
+                                                                 mod_output=(modelStr=='zhangnet'))
                 print('Done reading, running the network (%d of %d)' % (j, len(dataset_filenames)))
 
                 bar = progressbar.ProgressBar(maxval=len(input_batches))
                 bar.start()
                 count = 0
                 for in_batch,out_batch,imgName in zip(input_batches, output_batches, imgNames):
-                    if modelStr=='trans':
-                        out_batch = map_output(out_batch)
-
                     if runMode=='sample':
                         out_img = curModel.sample(sess, in_batch, imgName=os.path.join(sampleDir, imgName[0]))
                         exit(0)
@@ -262,7 +265,7 @@ if __name__ == "__main__":
 
     print("Parsing Command Line Arguments...")
     requiredModel = parser.add_argument_group('Required Model arguments')
-    requiredModel.add_argument('-m', choices = ["normal", "mod"], type = str,
+    requiredModel.add_argument('-m', choices = ["zhangnet", "unet"], type = str,
                         dest = 'model', required = True, help = 'Type of model to run')
     requiredTrain = parser.add_argument_group('Required Train/Test arguments')
     requiredTrain.add_argument('-r', choices = ["train", "test", "sample", "val", "hyper"], type = str,
