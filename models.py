@@ -57,13 +57,16 @@ class Unet(object):
         self.loss_op = tf.losses.mean_squared_error(self.output_placeholder, self.layers['output'])
         
         tf.summary.scalar('Loss', self.loss_op)
-        self.train_op = tf.train.AdamOptimizer(self.config.lr).minimize(self.loss_op)
+        
+        extra_update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+        with tf.control_dependencies(extra_update_ops):
+            self.train_op = tf.train.AdamOptimizer(self.config.lr).minimize(self.loss_op)
 
     def metrics(self):
         tf.summary.scalar('Accuracy', self.loss_op)
         self.summary_op = tf.summary.merge_all()
 
-    def run(self, sess, in_batch, out_batch, is_train):
+    def run(self, sess, in_batch, out_batch, is_train, imgName):
         feed_dict = {
             self.is_train           : is_train,
             self.input_placeholder  : in_batch,
@@ -71,7 +74,16 @@ class Unet(object):
         }
 
         if is_train:
-            _, summary, loss = sess.run([self.train_op, self.summary_op, self.loss_op], feed_dict=feed_dict)
+            _, summary, loss, out_img = sess.run([self.train_op, self.summary_op, self.loss_op, self.layers['output']], feed_dict=feed_dict)
+            out_img = out_img[0,:,:,:]
+            print(np.max(out_batch[0]))
+            print(np.min(out_batch[0]))
+            print(np.mean(out_batch[0]))
+            print('-'*10)
+            numpy2jpg(imgName.replace('.jpg','_noOverlay.jpg'), out_img, overlay=None, meanVal=1, verbose=False)
+            numpy2jpg(imgName.replace('.jpg','_overlay.jpg'), out_img, overlay=in_batch[0], meanVal=1, verbose=False)
+            numpy2jpg(imgName.replace('.jpg','_original.jpg'), in_batch[0], None, meanVal=LINE_MEAN, verbose=False)
+            exit(0)
         else:
             summary, loss = sess.run([self.summary_op, self.loss_op], feed_dict=feed_dict)
 
@@ -82,16 +94,26 @@ class Unet(object):
         return summary, loss
 
 
-    def sample(self, sess, in_batch, imgName=None):
+    def sample(self, sess, in_batch, out_batch, imgName=None):
         feed_dict = {
             self.is_train           : False,
-            self.input_placeholder  : in_batch
+            self.input_placeholder  : in_batch,
+            self.output_placeholder : out_batch
         }
 
-        out_img = sess.run([self.layers['output']], feed_dict=feed_dict)[0][0,:,:,:]
+        out_img, loss = sess.run([self.layers['output'], self.loss_op], feed_dict=feed_dict)
+        out_img = out_img[0,:,:,:]
+        
+        print('+'*10 + str(loss))
+        
+        print(np.max(out_batch[0]))
+        print(np.min(out_batch[0]))
+        print(np.mean(out_batch[0]))
+        print('-'*10)
 
         if imgName!=None:
             numpy2jpg(imgName, out_img, overlay=in_batch[0], meanVal=1, verbose=False)
+            numpy2jpg(imgName.replace('.jpg','_1.jpg'), out_img, overlay=None, meanVal=1, verbose=False)
 
         return out_img
     

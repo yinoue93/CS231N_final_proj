@@ -48,7 +48,10 @@ def save_checkpoint(ckpt_dir, sess, saver, i):
 def getDataFileNames(fileDir):
     # load the data directory correctly
     if os.path.isdir(fileDir):
-        dataset_filenames = [os.path.join(fileDir, fname) for fname in os.listdir(fileDir)]
+        dataset_filenames = []
+        for fname in os.listdir(fileDir):
+            if '.filepart' not in fname:
+                dataset_filenames.append(os.path.join(fileDir, fname))
     else:
         dataset_filenames = [fileDir]
 
@@ -74,7 +77,7 @@ def createLogFile():
 def logToFile(logName, contents):
     print(contents)
     with open(logName, 'a+') as f:
-        f.write(contents)
+        f.write(contents + '\n')
 
 if __name__ == "__main__":
     pass

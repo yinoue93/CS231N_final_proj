@@ -132,43 +132,72 @@ def run_model(modelStr, runMode, ckptDir, dataDir, sampleDir, overrideCkpt, numE
 
         # run the network
         dataset_filenames = getDataFileNames(dataDir)
-        for i in range(i_stopped, numEpochs):
+        counter = 0
+        for epochCounter in range(i_stopped, numEpochs):
             batch_loss = []
-            printSeparator("Running epoch %d" % i)
+            printSeparator("Running epoch %d" % epochCounter)
             random.shuffle(dataset_filenames)
 
             for j, data_file in enumerate(dataset_filenames):
-                # Get data
-                print('Reading data in %s...' % data_file)
-                input_batches,output_batches,imgNames = h52numpy(data_file, batch_sz=batch_size, 
-                                                                 mod_output=(modelStr=='zhangnet'))
-                print('Done reading, running the network (%d of %d)' % (j, len(dataset_filenames)))
+                mini_loss = []
+                for iter_val in range(4):
+                    # Get data
+                    print('Reading data in %s, iter_val: %d...' % (data_file, iter_val))
+                    try:
+                        input_batches,output_batches,imgNames = h52numpy(data_file, batch_sz=batch_size, iter_val=iter_val, 
+                                                                         mod_output=(modelStr=='zhangnet'))
+                    except:
+                        logToFile(logName, "File reading failed...")
+                        continue
+                    print('Done reading, running the network (%d of %d)' % (j+1, len(dataset_filenames)))
 
-                bar = progressbar.ProgressBar(maxval=len(input_batches))
-                bar.start()
-                count = 0
-                for in_batch,out_batch,imgName in zip(input_batches, output_batches, imgNames):
-                    if runMode=='sample':
-                        out_img = curModel.sample(sess, in_batch, imgName=os.path.join(sampleDir, imgName[0]))
-                        exit(0)
-                    else:
-                        summary, loss = curModel.run(sess, in_batch, out_batch, is_training)
+                    bar = progressbar.ProgressBar(maxval=int(len(input_batches)/batch_size))
+                    bar.start()
+                    count = 0
+                    for dataIndx in range(0, len(imgNames), batch_size):
+                        in_batch = input_batches[dataIndx:dataIndx+batch_size]
+                        out_batch = output_batches[dataIndx:dataIndx+batch_size]
+                        imgName = imgNames[dataIndx:dataIndx+batch_size]
+                        
+                        # look at the images in the dataset (for debug usage)
+                        #for kk in range(batch_size):
+                        #    numpy2jpg('tmp'+str(kk+dataIndx)+'.jpg', in_batch[kk,:,:,0], overlay=None, meanVal=LINE_MEAN, verbose=False)
+                        #    numpy2jpg('KAK'+str(kk+dataIndx)+'.jpg', out_batch[kk,:,:], overlay=None, meanVal=1, verbose=False)
+                        #if dataIndx>batch_size*2:
+                        #    exit(0)
 
-                        file_writer.add_summary(summary, step)
-                        batch_loss.append(loss)
+                        if runMode=='sample':
+                            out_img = curModel.sample(sess, in_batch, out_batch, imgName=os.path.join(sampleDir, imgName[0]))
+                            exit(0)
+                        else:
+                            summary, loss = curModel.run(sess, in_batch, out_batch, is_training, imgName=os.path.join(sampleDir, imgName[0]))
 
-                    # Processed another batch
-                    step += 1
-                    count += 1
-                    bar.update(count)
-                bar.finish()
+                            file_writer.add_summary(summary, step)
+                            batch_loss.append(loss)
+                            mini_loss.append(loss)
+
+                        # Processed another batch
+                        step += 1
+                        count += 1
+                        bar.update(count)
+                    bar.finish()
+                    
+                    input_batches = None
+                    output_batches = None
+                    
+                logToFile(logName, "Epoch %d Dataset #%d loss: %f" %(epochCounter, j, np.mean(mini_loss)))
+                
+                counter += 1
+                if counter%2==0:
+                    save_checkpoint(ckptDir, sess, saver, counter)
 
             test_loss = np.mean(batch_loss)
-            logToFile(logName, "Epoch %d loss: %f" %(i, test_loss))
+            logToFile(logName, "Epoch %d loss: %f" %(epochCounter, test_loss))
 
             if is_training:
                 # Checkpoint model - every epoch
-                save_checkpoint(ckptDir, sess, saver, i)
+                #save_checkpoint(ckptDir, sess, saver, epochCounter)
+                pass
             elif runMode!='sample':
                 if runMode == 'val':
                     # Update the file for choosing best hyperparameters

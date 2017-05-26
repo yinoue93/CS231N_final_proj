@@ -63,6 +63,11 @@ def jpg2H5(dataPack):
 
 def numpy2jpg(outputFname, arr, overlay=None, meanVal=0, verbose=False):
     outputImg = arr[:,:,0] if (len(arr.shape)==3 and arr.shape[2]==1) else arr
+    
+    print(np.max(outputImg))
+    print(np.min(outputImg))
+    print(np.mean(outputImg))
+    
 
     if meanVal!=None:
         if len(outputImg.shape)==2:
@@ -140,72 +145,61 @@ def map_output(outData, outImgSz):
     return soft_encoding
 
 
-def h52numpy(hdf5Filename, outputDir='', checkMean=False, batch_sz=1, mod_output=False):
+def h52numpy(hdf5Filename, checkMean=False, batch_sz=1, mod_output=False, iter_val=0):
     """
     Returns a shuffled list of input and output data, with each element of the list
     numpy array of shape (batch_sz, H, W, C)
     """
-    if outputDir:
-        makeDir(outputDir)
 
     if 'line' in hdf5Filename:
         input_mean = LINE_MEAN
     elif 'binary' in hdf5Filename:
         input_mean = BINARY_MEAN
-
-    out_img_shape = (batch_sz, int(IMG_DIM/4)**2, 512) if mod_output else (batch_sz, IMG_DIM, IMG_DIM, 3)
         
     meanTotal = np.asarray([0]*4)
     count = 0
-    inData = []
-    outData = []
-    fileNames = []
-    with h5py.File(hdf5Filename,'r') as hf:
-        keys = list(hf.keys())
-        random.shuffle(keys)
 
-        tmpIn = np.empty(shape=(batch_sz, IMG_DIM, IMG_DIM, 1), dtype=float)
-        tmpOut = np.empty(shape=out_img_shape, dtype=float)
-        tmpNames = [None]*batch_sz
+    with h5py.File(hdf5Filename,'r', driver='core') as hf:
+        keys = list(hf.keys())
+        stride_sz = int(len(keys)/4)
+        keys = keys[iter_val*stride_sz:(iter_val+1)*stride_sz]
+        random.shuffle(keys)
+        # make the key size a multiple of @batch_sz
+        keys = keys[:batch_sz*int(len(keys)/batch_sz)]
+        
+        inData = np.empty(shape=(len(keys), IMG_DIM, IMG_DIM), dtype=float)
+        out_img_shape = (len(keys), int(IMG_DIM/4)**2, 512) if mod_output else (len(keys), IMG_DIM, IMG_DIM, 3)
+        outData = np.empty(shape=out_img_shape, dtype=float)
+        fileNames = []
+        
         for i,key in enumerate(keys):
+            # check how much data is loaded (for debug use)
+            #if i%int(len(keys)*0.1)==0:
+            #    print('===============++++++++++++++++++=================')
+                
             indx = i%batch_sz
             
             if mod_output:
                 if '_output' in key:
                     continue
                     
-                data = hf.get(key)[:]
-                tmpIn[indx,:,:,0] = data.astype(int) - input_mean
-                tmpOut[indx,:,:] = hf.get(key+'_output')
+                inData[i,:,:] = hf.get(key)[:]
+                outData[i,:,:] = hf.get(key+'_output')[:]
             else:
                 data = hf.get(key)
-                tmpIn[indx,:,:,0] = data[:,:,0].astype(int) - input_mean
-                tmpOut[indx,:,:,:] = data[:,:,1:].astype(int) - [REDUCED_R_MEAN,REDUCED_G_MEAN,REDUCED_B_MEAN]
+                inData[i,:,:] = data[:,:,0]
+                outData[i,:,:,:] = data[:,:,1:]
                 
-            tmpNames[indx] = key.replace('\\','/')
-            if '.jpg' not in tmpNames[indx]:
-                tmpNames[indx] += '.jpg'
-
-            if indx==batch_sz-1:
-                inData.append(tmpIn)
-                outData.append(tmpOut)
-                fileNames.append(tmpNames)
-
-                tmpIn = np.empty(shape=(batch_sz, IMG_DIM, IMG_DIM, 1), dtype=float)
-                tmpOut = np.empty(shape=out_img_shape, dtype=float)
-                tmpNames = [None]*batch_sz
-
-            if outputDir:
-                numpy2jpg(os.path.join(outputDir, key+'_in.png'), data[:,:,0])
-                numpy2jpg(os.path.join(outputDir, key+'_out.png'), data[:,:,1:])
-
-            if checkMean:
-                meanTotal[0] += np.mean(inData[count])
-                meanTotal[1] += np.mean(outData[count][:,:,0])
-                meanTotal[2] += np.mean(outData[count][:,:,1])
-                meanTotal[3] += np.mean(outData[count][:,:,2])
-
-                count += 1
+            fileNames.append(key.replace('\\','/'))
+            if '.jpg' not in fileNames[-1]:
+                fileNames[-1] += '.jpg'
+                
+            count += 1
+    
+    inData = inData - input_mean
+    inData = np.expand_dims(inData, axis=3)
+    if not mod_output:
+        outData = outData.astype(int) - [REDUCED_R_MEAN,REDUCED_G_MEAN,REDUCED_B_MEAN]
 
     if checkMean:
         print(count)
