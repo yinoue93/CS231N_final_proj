@@ -5,11 +5,15 @@ import numpy as np
 import re
 import h5py
 import scipy
+import math
+import shutil
 
 from constants import *
 
 from shutil import copyfile
 from scipy.misc import imread,imsave,toimage,imresize
+from multiprocessing import Pool
+from PIL import Image
 
 def makeDir(dirname):
     # make the directory for the created files
@@ -145,35 +149,17 @@ def map_output(outData, outImgSz):
     return soft_encoding
 
 
-def h52numpy(hdf5Filename, checkMean=False, batch_sz=1, mod_output=False, iter_val=0):
-    """
-    Returns a shuffled list of input and output data, with each element of the list
-    numpy array of shape (batch_sz, H, W, C)
-    """
+def h52numpyWorker(dataPack):
+    hdf5Filename, keys, batch_sz, mod_output = dataPack
 
-    if 'line' in hdf5Filename:
-        input_mean = LINE_MEAN
-    elif 'binary' in hdf5Filename:
-        input_mean = BINARY_MEAN
-        
-    meanTotal = np.asarray([0]*4)
-    count = 0
+    inData = np.empty(shape=(len(keys), IMG_DIM, IMG_DIM), dtype=float)
+    out_img_shape = (len(keys), int(IMG_DIM/4)**2, 512) if mod_output else (len(keys), IMG_DIM, IMG_DIM, 3)
+    outData = np.empty(shape=out_img_shape, dtype=float)
+    fileNames = []
 
     with h5py.File(hdf5Filename,'r', driver='core') as hf:
-        keys = list(hf.keys())
-        stride_sz = int(len(keys)/4)
-        keys = keys[iter_val*stride_sz:(iter_val+1)*stride_sz]
-        random.shuffle(keys)
-        # make the key size a multiple of @batch_sz
-        keys = keys[:batch_sz*int(len(keys)/batch_sz)]
-        
-        inData = np.empty(shape=(len(keys), IMG_DIM, IMG_DIM), dtype=float)
-        out_img_shape = (len(keys), int(IMG_DIM/4)**2, 512) if mod_output else (len(keys), IMG_DIM, IMG_DIM, 3)
-        outData = np.empty(shape=out_img_shape, dtype=float)
-        fileNames = []
-        
         for i,key in enumerate(keys):
-            # check how much data is loaded (for debug use)
+            # check the data loading speed (for debug use)
             #if i%int(len(keys)*0.1)==0:
             #    print('===============++++++++++++++++++=================')
                 
@@ -193,9 +179,57 @@ def h52numpy(hdf5Filename, checkMean=False, batch_sz=1, mod_output=False, iter_v
             fileNames.append(key.replace('\\','/'))
             if '.jpg' not in fileNames[-1]:
                 fileNames[-1] += '.jpg'
-                
-            count += 1
     
+    return (inData, outData, fileNames)
+
+def h52numpy(hdf5Filename, checkMean=False, batch_sz=1, mod_output=False, iter_val=None, shuffle=True):
+    """
+    Returns a shuffled list of input and output data, with each element of the list
+    numpy array of shape (batch_sz, H, W, C)
+    """
+
+    if 'line' in hdf5Filename:
+        input_mean = LINE_MEAN
+    elif 'binary' in hdf5Filename:
+        input_mean = BINARY_MEAN
+        
+    meanTotal = np.asarray([0]*4)
+    count = 0
+
+    with h5py.File(hdf5Filename,'r') as hf:
+        keys = list(hf.keys())
+
+        # if iter_val is specified, only load a portion of the data
+        if iter_val!=None:
+            stride_sz = int(len(keys)/4)
+            keys = keys[iter_val*stride_sz:(iter_val+1)*stride_sz]
+
+        if shuffle:
+            random.shuffle(keys)
+        # make the key size a multiple of batch_sz
+        keys = keys[:batch_sz*int(len(keys)/batch_sz)]
+
+    workerKeySz = int(math.ceil(len(keys)/float(POOL_WORKER_COUNT)))
+    keyList = [keys[i*workerKeySz:(i+1)*workerKeySz] for i in range(POOL_WORKER_COUNT)]
+    dataPack = [(hdf5Filename, k, batch_sz, mod_output) for k in keyList]
+
+    p = Pool(POOL_WORKER_COUNT)
+    results = p.map(h52numpyWorker, dataPack)
+
+    inDataArr = []
+    outDataArr = []
+    fileNameArr = []
+    for result in results:
+        iData,oData,fN = result
+        inDataArr.append(iData)
+        outDataArr.append(oData)
+        fileNameArr.append(fN)
+
+    # consolidate the lists
+    inData = np.concatenate(inDataArr)
+    outData = np.concatenate(outDataArr)
+    fileNames = sum(fileNameArr, [])
+
     inData = inData - input_mean
     inData = np.expand_dims(inData, axis=3)
     if not mod_output:
@@ -207,6 +241,7 @@ def h52numpy(hdf5Filename, checkMean=False, batch_sz=1, mod_output=False, iter_v
         print('Means: ' + str(meanTotal/count))
 
     return inData, outData, fileNames
+
 
 def repackH5Worker(dataPack):
     fromName, toName, compression = dataPack
@@ -243,7 +278,6 @@ def repackH5(dataDir, outputDir, compression='gzip'):
 #--------------------------END H5 MODULES---------------------------------
 
 
-from PIL import Image
 def cleanUpDatasetWorker(dataPack):
     dataDir,filename = dataPack
     outfolder = 'to_be_removed'
@@ -274,8 +308,6 @@ def cleanUpDataset(dataDir):
 #--------------------------ZIPPING/UNZIPPING MODULES---------------------------------
 
 import zipfile
-import shutil
-from multiprocessing import Pool
 def zipper(dataPack):
     # a helper function for zipDirectory()
     fromDir, _, filenames, toDir = dataPack
@@ -381,6 +413,6 @@ if __name__ == "__main__":
     
     # unzipper(('D:\\Backups\\CS231N_data\\scraped\\compressed_26', 'tmp4'))
     
-    repackH5('/home/tbonerocksyinoue/data/line', outputDir='/home/tbonerocksyinoue/data/line_classification', compression='lzf')
-    
+    # repackH5('/home/tbonerocksyinoue/data/line', outputDir='/home/tbonerocksyinoue/data/line_classification', compression='lzf')
+        
     pass

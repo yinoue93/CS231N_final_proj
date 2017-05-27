@@ -85,6 +85,7 @@ def run_model(modelStr, runMode, ckptDir, dataDir, sampleDir, overrideCkpt, numE
     is_training = (runMode=='train')
     batch_size = 1 if runMode=='sample' else BATCH_SIZE
     numEpochs = numEpochs if is_training else 1
+    overrideCkpt = overrideCkpt if is_training else False
 
     printSeparator('Initializing %s/reading constants.py' % modelStr)
     input_sz = [IMG_DIM, IMG_DIM, 1]
@@ -106,8 +107,9 @@ def run_model(modelStr, runMode, ckptDir, dataDir, sampleDir, overrideCkpt, numE
     global_step = tf.Variable(0, trainable=False, name='global_step') #tf.contrib.framework.get_or_create_global_step()
     saver = tf.train.Saver(max_to_keep=numEpochs)
     step = 0
+    counter = 0
     
-    logName = createLogFile()
+    logDir,logName = createLog(runMode)
 
     printSeparator('Starting TF session')
     with tf.Session(config=GPU_CONFIG) as sess:
@@ -116,7 +118,7 @@ def run_model(modelStr, runMode, ckptDir, dataDir, sampleDir, overrideCkpt, numE
         # load checkpoint if necessary
         i_stopped, found_ckpt = get_checkpoint(overrideCkpt, ckptDir, sess, saver)
 
-        file_writer = tf.summary.FileWriter(ckptDir, graph=sess.graph, max_queue=10, flush_secs=30)
+        file_writer = tf.summary.FileWriter(logDir, graph=sess.graph, max_queue=10, flush_secs=30)
 
         if (not found_ckpt):
             if is_training:
@@ -131,8 +133,10 @@ def run_model(modelStr, runMode, ckptDir, dataDir, sampleDir, overrideCkpt, numE
             numEpochs = i_stopped + 1
 
         # run the network
-        dataset_filenames = getDataFileNames(dataDir)
-        counter = 0
+        if is_training:
+            dataset_filenames = getDataFileNames(dataDir, excludeFnames=['.filepart', 'test'])
+        else:
+            dataset_filenames = getDataFileNames(dataDir, excludeFnames=['.filepart'])
         for epochCounter in range(i_stopped, numEpochs):
             batch_loss = []
             printSeparator("Running epoch %d" % epochCounter)
@@ -155,6 +159,8 @@ def run_model(modelStr, runMode, ckptDir, dataDir, sampleDir, overrideCkpt, numE
                     bar.start()
                     count = 0
                     for dataIndx in range(0, len(imgNames), batch_size):
+                        mini_loss.append(0.4)
+                        break
                         in_batch = input_batches[dataIndx:dataIndx+batch_size]
                         out_batch = output_batches[dataIndx:dataIndx+batch_size]
                         imgName = imgNames[dataIndx:dataIndx+batch_size]
@@ -167,12 +173,12 @@ def run_model(modelStr, runMode, ckptDir, dataDir, sampleDir, overrideCkpt, numE
                         #    exit(0)
 
                         if runMode=='sample':
-                            out_img = curModel.sample(sess, in_batch, out_batch, imgName=os.path.join(sampleDir, imgName[0]))
+                            curModel.sample(sess, in_batch, out_batch, imgName=[os.path.join(sampleDir, imgName[0])])
                             exit(0)
                         else:
-                            summary, loss = curModel.run(sess, in_batch, out_batch, is_training, imgName=os.path.join(sampleDir, imgName[0]))
+                            summary_loss, loss = curModel.run(sess, in_batch, out_batch, is_training, imgName=os.path.join(sampleDir, imgName[0]))
 
-                            file_writer.add_summary(summary, step)
+                            file_writer.add_summary(summary_loss, step)
                             batch_loss.append(loss)
                             mini_loss.append(loss)
 
@@ -180,16 +186,23 @@ def run_model(modelStr, runMode, ckptDir, dataDir, sampleDir, overrideCkpt, numE
                         step += 1
                         count += 1
                         bar.update(count)
+                        break
                     bar.finish()
                     
                     input_batches = None
                     output_batches = None
+                    break
                     
                 logToFile(logName, "Epoch %d Dataset #%d loss: %f" %(epochCounter, j, np.mean(mini_loss)))
+
+                # run the sample images through the net to record the results to the Tensorflow (also locally stored)
+                img_summary = curModel.sample(sess, out2board=True, imgName=logDir+'/imgs')
+                file_writer.add_summary(img_summary, counter)
+                print('++'*10+str(counter))
                 
                 counter += 1
-                if counter%2==0:
-                    save_checkpoint(ckptDir, sess, saver, counter)
+                if is_training and (counter%SAVE_CKPT_COUNTER==0):
+                    save_checkpoint(ckptDir, sess, saver, i_stopped+int(counter/SAVE_CKPT_COUNTER))
 
             test_loss = np.mean(batch_loss)
             logToFile(logName, "Epoch %d loss: %f" %(epochCounter, test_loss))
@@ -244,7 +257,7 @@ def run_hyperparam(modelStr, numEpochs):
     ps = [lr]
     params = list(itertools.product(*ps))
 
-    logName = createLogFile()
+    logDir,logName = createLog('_hyperparam')
     
     count = 0
     best_val = 0
@@ -266,7 +279,7 @@ def run_hyperparam(modelStr, numEpochs):
         
         with tf.Session(config=GPU_CONFIG) as sess:
             # train the network
-            dataset_filenames = getDataFileNames(TRAIN_DATA)
+            dataset_filenames = getDataFileNames(TRAIN_DATA, excludeFnames=['.filepart', 'test'])
             for i in range(numEpochs):
                 random.shuffle(dataset_filenames)
                 train_loss = run_one_epoch(sess, curModel, dataset_filenames, modelStr, is_training=True)

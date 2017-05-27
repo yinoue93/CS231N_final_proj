@@ -86,87 +86,93 @@ def loadImg(imgPath, verbose=False):
     return rgb_imgs
 
 def processPic(dataPack):
-    try:
-        inDir, filename = dataPack
+    # try:
+    inDir, filename = dataPack
 
-        imgPath = os.path.join(inDir, filename)
-        outPath_reduced = os.path.join(inDir+'_processed_reduced', filename)
-        outPath_line = os.path.join(inDir+'_processed_line', filename)
-        outPath_binary = os.path.join(inDir+'_processed_binary', filename)
+    imgPath = os.path.join(inDir, filename)
+    outPath_reduced = os.path.join(inDir+'_processed_reduced', filename)
+    outPath_line = os.path.join(inDir+'_processed_line', filename)
+    outPath_binary = os.path.join(inDir+'_processed_binary', filename)
 
-        # print(imgPath)
+    # print(imgPath)
 
-        # load the image
-        imgs = loadImg(imgPath)
-        if not len(imgs):
-            return
+    # load the image
+    imgs = loadImg(imgPath)
+    if not len(imgs):
+        return
 
-        for i,img in enumerate(imgs):
-            gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    for i,img in enumerate(imgs):
+        gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-            img_dilate = cv2.erode(gray_img, neiborhood8, iterations=2)
-            img_dilate = cv2.dilate(img_dilate, neiborhood8, iterations=4)
+        img_dilate = cv2.erode(gray_img, neiborhood8, iterations=2)
+        img_dilate = cv2.dilate(img_dilate, neiborhood8, iterations=4)
 
-            img_diff = cv2.absdiff(gray_img, img_dilate)
-            
-            img_diff = cv2.multiply(img_diff, 3)
-            img_line = cv2.bitwise_not(img_diff)
+        img_diff = cv2.absdiff(gray_img, img_dilate)
+        
+        img_diff = cv2.multiply(img_diff, 3)
+        img_line = cv2.bitwise_not(img_diff)
 
-            # img_binary = cv2.adaptiveThreshold(img_line, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 15, 8)
-            _,img_binary = cv2.threshold(img_line, 0, 255, cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+        # img_binary = cv2.adaptiveThreshold(img_line, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 15, 8)
+        _,img_binary = cv2.threshold(img_line, 0, 255, cv2.THRESH_BINARY+cv2.THRESH_OTSU)
 
-            # resize the smaller dimension of the image to IMG_SZ
-            ratio = IMG_SZ / np.amin(gray_img.shape)
-            img_line = cv2.resize(img_line, (0,0), fx=ratio, fy=ratio, interpolation=cv2.INTER_AREA)
-            img_binary = cv2.resize(img_binary, (0,0), fx=ratio, fy=ratio, interpolation=cv2.INTER_AREA)
+        # resize the smaller dimension of the image to IMG_SZ
+        ratio = IMG_SZ / np.amin(gray_img.shape)
+        img_line = cv2.resize(img_line, (0,0), fx=ratio, fy=ratio, interpolation=cv2.INTER_AREA)
+        img_binary = cv2.resize(img_binary, (0,0), fx=ratio, fy=ratio, interpolation=cv2.INTER_AREA)
 
-            # visualization (debugging purpose)
-            # cv2.imshow('test',grayImg)
-            # cv2.imshow('test2',img_dilate)
-            # cv2.imshow('test3',img_diff)
+        # visualization (debugging purpose)
+        # cv2.imshow('test',grayImg)
+        # cv2.imshow('test2',img_dilate)
+        # cv2.imshow('test3',img_diff)
 
-            # cv2.imshow('test4',img_line)
-            # cv2.imshow('test5',img_binary)
-            # cv2.imshow('test6',img_diff_not2)
-            # cv2.waitKey()
+        # cv2.imshow('test4',img_line)
+        # cv2.imshow('test5',img_binary)
+        # cv2.imshow('test6',img_diff_not2)
+        # cv2.waitKey()
 
-            # cv2.destroyAllWindows()
+        # cv2.destroyAllWindows()
 
-            img_reduced = cv2.resize(img, (0,0), fx=ratio, fy=ratio, interpolation=cv2.INTER_CUBIC)
-            cv2.imwrite(outPath_reduced.replace('.jpg', '_%d.jpg'%i), img_reduced)
-            cv2.imwrite(outPath_line.replace('.jpg', '_%d.jpg'%i), img_line)
-            cv2.imwrite(outPath_binary.replace('.jpg', '_%d.jpg'%i), img_binary)
+        img_reduced = cv2.resize(img, (0,0), fx=ratio, fy=ratio, interpolation=cv2.INTER_CUBIC)
+        cv2.imwrite(outPath_reduced.replace('.jpg', '_%d.jpg'%i), img_reduced)
+        cv2.imwrite(outPath_line.replace('.jpg', '_%d.jpg'%i), img_line)
+        cv2.imwrite(outPath_binary.replace('.jpg', '_%d.jpg'%i), img_binary)
 
-            i += 1
-    except:
-        print(filename)
+        i += 1
+    # except:
+        # print(filename)
         
 
-def preprocessData(folderName):
+def preprocessData(folderName, prune=False):
+    # if prune==True, the function checks to see if the images have already been converted
+
     makeDir(folderName+'_processed_reduced')
     makeDir(folderName+'_processed_line')
     makeDir(folderName+'_processed_binary')
 
-    indx2remove = set([int(re.search('[0-9]+',filename).group(0)) for filename in os.listdir(folderName+'_processed_reduced')])
+    if prune:
+        indx2remove = set([int(re.search('[0-9]+',filename).group(0)) for filename in os.listdir(folderName+'_processed_reduced')])
 
-    fileIndx = np.asarray([int(re.search('[0-9]+',filename).group(0)) for filename in os.listdir(folderName)])
-    fileIndx = np.sort(fileIndx)
+        fileIndx = np.asarray([int(re.search('[0-9]+',filename).group(0)) for filename in os.listdir(folderName)])
+        fileIndx = np.sort(fileIndx)
 
-    rmIndx = sorted([fileIndx.searchsorted(i) for i in indx2remove], reverse=True)
+        filenames = list(fileIndx)
 
-    filenames = list(fileIndx)
+        rmIndx = sorted([fileIndx.searchsorted(i) for i in indx2remove], reverse=True)
+        for indx in rmIndx:
+            del filenames[indx]
 
-    for indx in rmIndx:
-        del filenames[indx]
+        print('Done pruning out the processed files...')
+        mapList = [(folderName, str(filename)+'.jpg') for filename in filenames]
 
-    print('Done pruning out the processed files...')
+    else:
+        filenames = os.listdir(folderName)
+        mapList = [(folderName, filename) for filename in filenames]
 
     p = Pool(POOL_WORKER_COUNT)
-    mapList = [(folderName, str(filename)+'.jpg') for filename in filenames]
     # mapList = (mapList[0],)
     p.map(processPic, mapList)
 
     print('done...')
 
 if __name__ == "__main__":
-    preprocessData('small_scraped')
+    preprocessData('../images/sampleImg')

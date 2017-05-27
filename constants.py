@@ -1,5 +1,5 @@
 # multi processing constant
-POOL_WORKER_COUNT = 8
+POOL_WORKER_COUNT = 4
 
 # dataset image mean constants
 REDUCED_R_MEAN = 167
@@ -9,7 +9,7 @@ LINE_MEAN = 219
 BINARY_MEAN = 225
 
 # network constants
-BATCH_SIZE = 16
+BATCH_SIZE = 4
 IMG_DIM = 256
 NUM_EPOCHS = 10
 NUM_EPOCHS_HYPERPARAM = 2
@@ -21,11 +21,17 @@ TEST_DATA = DIR_MODIFIER + '/small'
 VALIDATION_DATA = DIR_MODIFIER + '/small'
 
 CKPT_DIR_DEFAULT = DIR_MODIFIER + '/temp_ckpt'
+SAMPLE_DATA_FILE = 'sample_data_line'
 SAMPLE_OUT_DIR = DIR_MODIFIER + '/sample_out_imgs'
 SUMMARY_DIR = DIR_MODIFIER + '/dev_summary2'
 
+SAVE_CKPT_COUNTER = 1
+
 # sampling constants
 TEMPERATURE = 0.38
+
+# test image stuff
+TEST_IMG_NAMES = []
 
 class UnetConfig(object):
 

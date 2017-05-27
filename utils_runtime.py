@@ -33,7 +33,7 @@ def get_checkpoint(override, ckpt_dir, sess, saver):
             i_stopped = 0
     else:
         saver.restore(sess, ckpt_dir)
-        i_stopped = int(ckpt_dir.split('/')[-1].split('-')[-1]) + 1
+        i_stopped = int(ckpt_dir.split('/')[-1].split('-')[-1])
         print("Found checkpoint for epoch ({0})".format(i_stopped))
         found_ckpt = True
 
@@ -45,13 +45,16 @@ def save_checkpoint(ckpt_dir, sess, saver, i):
     saver.save(sess, checkpoint_path, global_step=i)
 
 
-def getDataFileNames(fileDir):
+def getDataFileNames(fileDir, excludeFnames=''):
     # load the data directory correctly
     if os.path.isdir(fileDir):
         dataset_filenames = []
         for fname in os.listdir(fileDir):
-            if '.filepart' not in fname:
-                dataset_filenames.append(os.path.join(fileDir, fname))
+            for efname in excludeFnames:
+                if efname in fname:
+                    continue
+
+            dataset_filenames.append(os.path.join(fileDir, fname))
     else:
         dataset_filenames = [fileDir]
 
@@ -64,15 +67,19 @@ def getParamStr(param_key, param):
         param_str += param_key[i] + ': ' + str(param[i]) + ', '
     return param_str
 
-def createLogFile():
+def createLog(fName_mod=''):
     # create a log file and initialize it with the contents of constants.py
     makeDir('logs')
+
     now = datetime.datetime.now()
-    fileName = 'logs/%s.txt' %(now.strftime("%B_%d_%H_%M_%S"))
-    
+    dirName = 'logs/' + now.strftime("%B_%d_%H_%M_%S") + '_' + fName_mod
+    makeDir(dirName)
+    makeDir(dirName+'/imgs')
+
+    fileName = dirName+'/log.txt'
     shutil.copyfile('constants.py', fileName)
     
-    return fileName
+    return dirName,fileName
 
 def logToFile(logName, contents):
     print(contents)
