@@ -9,7 +9,7 @@ LINE_MEAN = 219
 BINARY_MEAN = 225
 
 # network constants
-BATCH_SIZE = 20
+BATCH_SIZE = 4
 IMG_DIM = 256
 NUM_EPOCHS = 10
 NUM_EPOCHS_HYPERPARAM = 2
@@ -22,6 +22,7 @@ VALIDATION_DATA = DIR_MODIFIER + '/small'
 
 CKPT_DIR_DEFAULT = DIR_MODIFIER + '/temp_ckpt'
 SAMPLE_DATA_FILE = 'sample_data_line'
+SAMPLE_DATA_FILE_CLASSIFICATION = 'sample_data_line_classification'
 SAMPLE_OUT_DIR = DIR_MODIFIER + '/sample_out_imgs'
 SUMMARY_DIR = DIR_MODIFIER + '/dev_summary2'
 

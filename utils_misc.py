@@ -275,23 +275,21 @@ def h52numpy(hdf5Filename, checkMean=False, batch_sz=1, mod_output=False, iter_v
         outData = np.empty(shape=out_img_shape, dtype=float)
         fileNames = []
         
-        for i,key in enumerate(keys):
+        for key in keys:
             # check how much data is loaded (for debug use)
             #if i%int(len(keys)*0.1)==0:
             #    print('===============++++++++++++++++++=================')
-                
-            indx = i%batch_sz
             
             if mod_output:
                 if '_output' in key:
                     continue
                     
-                inData[i,:,:] = hf.get(key)[:]
-                outData[i,:,:] = hf.get(key+'_output')[:]
+                inData[count,:,:] = hf.get(key)[:]
+                outData[count,:,:] = hf.get(key+'_output')[:]
             else:
                 data = hf.get(key)
-                inData[i,:,:] = data[:,:,0]
-                outData[i,:,:,:] = data[:,:,1:]
+                inData[count,:,:] = data[:,:,0]
+                outData[count,:,:,:] = data[:,:,1:]
                 
             fileNames.append(key.replace('\\','/'))
             if '.jpg' not in fileNames[-1]:
@@ -481,6 +479,6 @@ if __name__ == "__main__":
     
     # unzipper(('D:\\Backups\\CS231N_data\\scraped\\compressed_26', 'tmp4'))
     
-    repackH5('/home/tbonerocksyinoue/data/line', outputDir='/home/tbonerocksyinoue/data/line_classification', compression='lzf')
+    # repackH5('small_dataset/tmpdata', outputDir='small_dataset/tmpdata_classification', compression='lzf')
         
     pass
