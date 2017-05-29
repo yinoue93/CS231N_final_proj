@@ -108,7 +108,8 @@ class Unet(object):
 
         if self.verbose:
             # print("Average accuracy per batch {0}".format(accuracy))
-            print("Batch Loss: {0}".format(loss))
+            # print("Batch Loss: {0}".format(loss))
+            pass
 
         return summary_loss, loss
 
@@ -117,7 +118,7 @@ class Unet(object):
         if out2board:
             in_batch = self.SAMPLE_INPUT
             out_batch = self.SAMPLE_OUTPUT
-            imgNames = [os.path.join(imgName, imgN) for imgN in self.SAMPLE_NAMES]
+            imgName = [os.path.join(imgName, imgN) for imgN in self.SAMPLE_NAMES]
 
         feed_dict = {
             self.is_train           : False,
@@ -132,10 +133,7 @@ class Unet(object):
 
 
         if imgName!=None:
-            for iImg,gtImg,pImg,poImg,name in zip(in_img, gt_img, pred_img, pred_overlay_img, imgNames):
-                print(name)
-                print(name.replace('.jpg', '_input%d.jpg'%self.fnameMod))
-
+            for iImg,gtImg,pImg,poImg,name in zip(in_img, gt_img, pred_img, pred_overlay_img, imgName):
                 toimage(iImg, cmin=0, cmax=255).save(name.replace('.jpg', '_input%d.jpg'%self.fnameMod))
                 toimage(gtImg, cmin=0, cmax=255).save(name.replace('.jpg', '_gt%d.jpg'%self.fnameMod))
                 toimage(pImg, cmin=0, cmax=255).save(name.replace('.jpg', '_predicted%d.jpg'%self.fnameMod))
@@ -216,7 +214,8 @@ class ZhangNet(object):
 
         if self.verbose:
             # print("Average accuracy per batch {0}".format(accuracy))
-            print("Batch Loss: {0}".format(loss))
+            # print("Batch Loss: {0}".format(loss))
+            pass
 
         return summary_loss, loss
 

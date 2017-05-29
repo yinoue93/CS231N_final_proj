@@ -21,47 +21,6 @@ GPU_CONFIG = tf.ConfigProto()
 GPU_CONFIG.gpu_options.per_process_gpu_memory_fraction = 0.9
 
 
-def plot_confusion(confusion_matrix, vocabulary, epoch, characters_remove=[], annotate=False):
-    # Get vocabulary components
-    vocabulary_keys = music_map.keys()
-    vocabulary_values = music_map.values()
-    # print(vocabulary_keys
-    vocabulary_values, vocabulary_keys =  tuple([list(tup) for tup in zip(*sorted(zip(vocabulary_values, vocabulary_keys)))])
-    # print(vocabulary_keys
-
-    removed_indicies = []
-    for c in characters_remove:
-        i = vocabulary_keys.index(c)
-        vocabulary_keys.remove(c)
-        index = vocabulary_values.pop(i)
-        removed_indicies.append(index)
-
-    # Delete unnecessary rows
-    conf_temp = np.delete(confusion_matrix, removed_indicies, axis=0)
-    # Delete unnecessary cols
-    new_confusion = np.delete(conf_temp, removed_indicies, axis=1)
-
-
-    vocabulary_values = range(len(vocabulary_keys))
-    vocabulary_size = len(vocabulary_keys)
-
-    fig, ax = plt.subplots(figsize=(10, 10))
-    res = ax.imshow(new_confusion.astype(int), interpolation='nearest', cmap=plt.cm.jet)
-    cb = fig.colorbar(res)
-
-    if annotate:
-        for x in range(vocabulary_size):
-            for y in range(vocabulary_size):
-                ax.annotate(str(new_confusion[x, y]), xy=(y, x),
-                            horizontalalignment='center',
-                            verticalalignment='center',
-                            fontsize=4)
-
-    plt.xticks(vocabulary_values, vocabulary_keys, fontsize=6)
-    plt.yticks(vocabulary_values, vocabulary_keys, fontsize=6)
-    fig.savefig('confusion_matrix_epoch{0}.png'.format(epoch))
-
-
 def run_model(modelStr, runMode, ckptDir, dataDir, sampleDir, overrideCkpt, numEpochs):
     print('Running model...')
 
@@ -109,7 +68,10 @@ def run_model(modelStr, runMode, ckptDir, dataDir, sampleDir, overrideCkpt, numE
     step = 0
     counter = 0
     
-    logDir,logName = createLog(runMode)
+    if runMode=='sample':
+        logDir,logName = None,None
+    else:
+        logDir,logName = createLog(runMode)
 
     printSeparator('Starting TF session')
     with tf.Session(config=GPU_CONFIG) as sess:
@@ -118,7 +80,8 @@ def run_model(modelStr, runMode, ckptDir, dataDir, sampleDir, overrideCkpt, numE
         # load checkpoint if necessary
         i_stopped, found_ckpt = get_checkpoint(overrideCkpt, ckptDir, sess, saver)
 
-        file_writer = tf.summary.FileWriter(logDir, graph=sess.graph, max_queue=10, flush_secs=30)
+        if runMode!='sample':
+            file_writer = tf.summary.FileWriter(logDir, graph=sess.graph, max_queue=10, flush_secs=30)
 
         if (not found_ckpt):
             if is_training:
@@ -144,7 +107,7 @@ def run_model(modelStr, runMode, ckptDir, dataDir, sampleDir, overrideCkpt, numE
 
             for j, data_file in enumerate(dataset_filenames):
                 mini_loss = []
-                for iter_val in range(4):
+                for iter_val in range(DATA_LOAD_PARTITION):
                     # Get data
                     print('Reading data in %s, iter_val: %d...' % (data_file, iter_val))
                     try:
@@ -159,8 +122,6 @@ def run_model(modelStr, runMode, ckptDir, dataDir, sampleDir, overrideCkpt, numE
                     bar.start()
                     count = 0
                     for dataIndx in range(0, len(imgNames), batch_size):
-                        mini_loss.append(0.4)
-                        break
                         in_batch = input_batches[dataIndx:dataIndx+batch_size]
                         out_batch = output_batches[dataIndx:dataIndx+batch_size]
                         imgName = imgNames[dataIndx:dataIndx+batch_size]
@@ -174,7 +135,8 @@ def run_model(modelStr, runMode, ckptDir, dataDir, sampleDir, overrideCkpt, numE
 
                         if runMode=='sample':
                             curModel.sample(sess, in_batch, out_batch, imgName=[os.path.join(sampleDir, imgName[0])])
-                            exit(0)
+                            if NUM_SAMPLES==count:
+                                exit(0)
                         else:
                             summary_loss, loss = curModel.run(sess, in_batch, out_batch, is_training, imgName=os.path.join(sampleDir, imgName[0]))
 
@@ -186,19 +148,16 @@ def run_model(modelStr, runMode, ckptDir, dataDir, sampleDir, overrideCkpt, numE
                         step += 1
                         count += 1
                         bar.update(count)
-                        break
                     bar.finish()
                     
                     input_batches = None
                     output_batches = None
-                    break
                     
                 logToFile(logName, "Epoch %d Dataset #%d loss: %f" %(epochCounter, j, np.mean(mini_loss)))
 
                 # run the sample images through the net to record the results to the Tensorflow (also locally stored)
                 img_summary = curModel.sample(sess, out2board=True, imgName=logDir+'/imgs')
                 file_writer.add_summary(img_summary, counter)
-                print('++'*10+str(counter))
                 
                 counter += 1
                 if is_training and (counter%SAVE_CKPT_COUNTER==0):

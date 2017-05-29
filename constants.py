@@ -1,5 +1,5 @@
 # multi processing constant
-POOL_WORKER_COUNT = 4
+POOL_WORKER_COUNT = 1
 
 # dataset image mean constants
 REDUCED_R_MEAN = 167
@@ -9,7 +9,7 @@ LINE_MEAN = 219
 BINARY_MEAN = 225
 
 # network constants
-BATCH_SIZE = 4
+BATCH_SIZE = 20
 IMG_DIM = 256
 NUM_EPOCHS = 10
 NUM_EPOCHS_HYPERPARAM = 2
@@ -26,12 +26,15 @@ SAMPLE_OUT_DIR = DIR_MODIFIER + '/sample_out_imgs'
 SUMMARY_DIR = DIR_MODIFIER + '/dev_summary2'
 
 SAVE_CKPT_COUNTER = 1
+DATA_LOAD_PARTITION = 4
 
 # sampling constants
 TEMPERATURE = 0.38
 
 # test image stuff
 TEST_IMG_NAMES = []
+
+NUM_SAMPLES = 16
 
 class UnetConfig(object):
 
@@ -96,7 +99,7 @@ class UnetConfig(object):
 
         self.layer_params['combine_1'] = {'bnorm':True, 'numFilters':32, 'filterSz':3}
         self.layer_params['combine_2'] = {'bnorm':True, 'numFilters':16, 'filterSz':3}
-        self.layer_params['combine_3'] = {'bnorm':True, 'numFilters':3, 'filterSz':3}
+        self.layer_params['combine_3'] = {'numFilters':3, 'filterSz':3}
 
         # set default layer parameters
         for _,layerParam in self.layer_params.items():

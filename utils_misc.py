@@ -182,7 +182,7 @@ def h52numpyWorker(dataPack):
     
     return (inData, outData, fileNames)
 
-def h52numpy(hdf5Filename, checkMean=False, batch_sz=1, mod_output=False, iter_val=None, shuffle=True):
+def h52numpy_parallel(hdf5Filename, checkMean=False, batch_sz=1, mod_output=False, iter_val=None, shuffle=True):
     """
     Returns a shuffled list of input and output data, with each element of the list
     numpy array of shape (batch_sz, H, W, C)
@@ -201,7 +201,7 @@ def h52numpy(hdf5Filename, checkMean=False, batch_sz=1, mod_output=False, iter_v
 
         # if iter_val is specified, only load a portion of the data
         if iter_val!=None:
-            stride_sz = int(len(keys)/4)
+            stride_sz = int(len(keys)/DATA_LOAD_PARTITION)
             keys = keys[iter_val*stride_sz:(iter_val+1)*stride_sz]
 
         if shuffle:
@@ -242,6 +242,74 @@ def h52numpy(hdf5Filename, checkMean=False, batch_sz=1, mod_output=False, iter_v
 
     return inData, outData, fileNames
 
+
+def h52numpy(hdf5Filename, checkMean=False, batch_sz=1, mod_output=False, iter_val=None, shuffle=True):
+    """
+    Returns a shuffled list of input and output data, with each element of the list
+    numpy array of shape (batch_sz, H, W, C)
+    """
+
+    if 'line' in hdf5Filename:
+        input_mean = LINE_MEAN
+    elif 'binary' in hdf5Filename:
+        input_mean = BINARY_MEAN
+        
+    meanTotal = np.asarray([0]*4)
+    count = 0
+
+    with h5py.File(hdf5Filename,'r', driver='core') as hf:
+        keys = list(hf.keys())
+        
+        # if iter_val is specified, only load a portion of the data
+        if iter_val!=None:
+            stride_sz = int(len(keys)/DATA_LOAD_PARTITION)
+            keys = keys[iter_val*stride_sz:(iter_val+1)*stride_sz]
+            
+        if shuffle:
+            random.shuffle(keys)
+        # make the key size a multiple of @batch_sz
+        keys = keys[:batch_sz*int(len(keys)/batch_sz)]
+        
+        inData = np.empty(shape=(len(keys), IMG_DIM, IMG_DIM), dtype=float)
+        out_img_shape = (len(keys), int(IMG_DIM/4)**2, 512) if mod_output else (len(keys), IMG_DIM, IMG_DIM, 3)
+        outData = np.empty(shape=out_img_shape, dtype=float)
+        fileNames = []
+        
+        for i,key in enumerate(keys):
+            # check how much data is loaded (for debug use)
+            #if i%int(len(keys)*0.1)==0:
+            #    print('===============++++++++++++++++++=================')
+                
+            indx = i%batch_sz
+            
+            if mod_output:
+                if '_output' in key:
+                    continue
+                    
+                inData[i,:,:] = hf.get(key)[:]
+                outData[i,:,:] = hf.get(key+'_output')[:]
+            else:
+                data = hf.get(key)
+                inData[i,:,:] = data[:,:,0]
+                outData[i,:,:,:] = data[:,:,1:]
+                
+            fileNames.append(key.replace('\\','/'))
+            if '.jpg' not in fileNames[-1]:
+                fileNames[-1] += '.jpg'
+                
+            count += 1
+    
+    inData = inData - input_mean
+    inData = np.expand_dims(inData, axis=3)
+    if not mod_output:
+        outData = outData.astype(int) - [REDUCED_R_MEAN,REDUCED_G_MEAN,REDUCED_B_MEAN]
+
+    if checkMean:
+        print(count)
+        print(meanTotal)
+        print('Means: ' + str(meanTotal/count))
+
+    return inData, outData, fileNames
 
 def repackH5Worker(dataPack):
     fromName, toName, compression = dataPack
@@ -413,6 +481,6 @@ if __name__ == "__main__":
     
     # unzipper(('D:\\Backups\\CS231N_data\\scraped\\compressed_26', 'tmp4'))
     
-    # repackH5('/home/tbonerocksyinoue/data/line', outputDir='/home/tbonerocksyinoue/data/line_classification', compression='lzf')
+    repackH5('/home/tbonerocksyinoue/data/line', outputDir='/home/tbonerocksyinoue/data/line_classification', compression='lzf')
         
     pass
