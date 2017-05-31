@@ -21,13 +21,15 @@ TEST_DATA = DIR_MODIFIER + '/small'
 VALIDATION_DATA = DIR_MODIFIER + '/small'
 
 CKPT_DIR_DEFAULT = DIR_MODIFIER + '/temp_ckpt'
-SAMPLE_DATA_FILE = 'sample_data_line'
 SAMPLE_DATA_FILE_CLASSIFICATION = 'sample_data_line_classification'
 SAMPLE_OUT_DIR = DIR_MODIFIER + '/sample_out_imgs'
 SUMMARY_DIR = DIR_MODIFIER + '/dev_summary2'
 
+SAMPLE_DATA_FILE = 'sample_data_line'
+CLASS_IMBALANCE_FILE = 'class_imbalance.npy'
+
 SAVE_CKPT_COUNTER = 1
-DATA_LOAD_PARTITION = 16
+DATA_LOAD_PARTITION = 8
 
 # sampling constants
 TEMPERATURE = 0.1
@@ -117,7 +119,9 @@ class ZhangNetConfig(object):
 
     def __init__(self):
         # optimizer params
-        self.lr = 5e-5
+        self.lr = 1e-2
+
+        self.use_class_imbalance = False
 
         # network params
         self.layer_keys = ['conv1_1', 'conv1_2', 'conv2_1', 'conv2_2', 'conv3_1', 'conv3_2', 'conv3_3',

@@ -71,11 +71,10 @@ class Model(object):
             self.output_placeholder : out_batch
         }
 
-        in_img, gt_img, pred_img, pred_overlay_img, summary_img, loss = sess.run([self.visual['input'], self.visual['ground_truth'], 
+        in_img, gt_img, pred_img, pred_overlay_img, summary_img, loss, kl = sess.run([self.visual['input'], self.visual['ground_truth'], 
                                                                                   self.visual['predicted'], self.visual['predicted_overlay'], 
-                                                                                  self.summary_img, self.loss_op], feed_dict=feed_dict)
+                                                                                  self.summary_img, self.loss_op, self.layers['output']], feed_dict=feed_dict)
         in_img = in_img[:,:,:,0]
-
 
         if imgName!=None:
             for iImg,gtImg,pImg,poImg,name in zip(in_img, gt_img, pred_img, pred_overlay_img, imgName):
@@ -207,9 +206,18 @@ class ZhangNet(Model):
             print("Built the Zhang Net Model.....")
 
     def add_loss_op(self):
-        # softmax loss
-        self.loss_op = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=self.layers['logits'],
-                                                                              labels=self.output_placeholder))
+        xloss = tf.nn.softmax_cross_entropy_with_logits(logits=self.layers['logits'], labels=self.output_placeholder)
+
+        if self.config.use_class_imbalance:
+            class_weights = tf.constant(np.load(CLASS_IMBALANCE_FILE), dtype=tf.float32)
+            max_indx = tf.argmax(self.output_placeholder, axis=2)
+
+            weight_vec = tf.gather(params=class_weights, indices=max_indx)
+            xloss = tf.reshape(xloss, shape=[tf.shape(xloss)[0], int((IMG_DIM)/4)**2])
+
+            self.loss_op = tf.reduce_mean(tf.multiply(xloss, weight_vec))
+        else:
+            self.loss_op = tf.reduce_mean(xloss)
 
         self.train_op = tf.train.AdamOptimizer(self.config.lr).minimize(self.loss_op)
     

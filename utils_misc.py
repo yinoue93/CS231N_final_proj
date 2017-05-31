@@ -259,6 +259,13 @@ def h52numpy(hdf5Filename, checkMean=False, batch_sz=1, mod_output=False, iter_v
 
     with h5py.File(hdf5Filename,'r', driver='core') as hf:
         keys = list(hf.keys())
+
+        tmpkeys = []
+        if mod_output:
+            for k in keys:
+                if '_output' not in k:
+                    tmpkeys.append(k)
+        keys = tmpkeys
         
         # if iter_val is specified, only load a portion of the data
         if iter_val!=None:
@@ -273,6 +280,7 @@ def h52numpy(hdf5Filename, checkMean=False, batch_sz=1, mod_output=False, iter_v
         inData = np.empty(shape=(len(keys), IMG_DIM, IMG_DIM), dtype=np.float16)
         out_img_shape = (len(keys), int(IMG_DIM/4)**2, 512) if mod_output else (len(keys), IMG_DIM, IMG_DIM, 3)
         outData = np.empty(shape=out_img_shape, dtype=np.float16)
+
         fileNames = []
         
         for key in keys:
@@ -280,10 +288,7 @@ def h52numpy(hdf5Filename, checkMean=False, batch_sz=1, mod_output=False, iter_v
             #if i%int(len(keys)*0.1)==0:
             #    print('===============++++++++++++++++++=================')
             
-            if mod_output:
-                if '_output' in key:
-                    continue
-                    
+            if mod_output:                    
                 inData[count,:,:] = hf.get(key)[:]
                 outData[count,:,:] = hf.get(key+'_output')[:]
             else:
@@ -458,6 +463,30 @@ def load_sample(dataDir):
 
 #--------------------------END ZIPPING/UNZIPPING MODULE---------------------------------
 
+def gatherClassImbalanceInfo(fdir, outName):
+    lamb = 0.5
+    Q = 512
+
+    p = np.zeros(shape=(Q))
+    
+    fnames = [os.path.join(fdir,nm) for nm in os.listdir(fdir)]
+
+    for i,fname in enumerate(fnames):
+        print('%s : #%d/%d' %(fname, i, len(fnames)))
+
+        for iter_val in range(DATA_LOAD_PARTITION):
+            _, outData, _ = h52numpy(fname, checkMean=False, batch_sz=1, mod_output=True, iter_val=iter_val, shuffle=False)
+
+        outData = np.reshape(outData, newshape=[-1, 512]).astype(float)
+        p += np.sum(outData, axis=0) / outData.shape[0]
+
+    p /= len(fnames)
+    w = 1 / ((1-lamb)*p + lamb/Q)
+    scale = np.sum(p*w)
+    w /= scale
+
+    np.save(outName, w)
+
 if __name__ == "__main__":
     # getBWPics()
     # zipDirectory('test_scraped_processed_binary', outputDirName='D:\\Backups\\CS231N_data\\processed_binary', zipFileSz=1024)
@@ -480,5 +509,7 @@ if __name__ == "__main__":
     # unzipper(('D:\\Backups\\CS231N_data\\scraped\\compressed_26', 'tmp4'))
     
     # repackH5('small_dataset/tmpdata', outputDir='small_dataset/tmpdata_classification', compression='lzf')
+
+    # gatherClassImbalanceInfo('tmptmp', 'class_imbalance')
         
     pass
