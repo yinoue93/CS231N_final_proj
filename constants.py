@@ -9,7 +9,7 @@ LINE_MEAN = 219
 BINARY_MEAN = 225
 
 # network constants
-BATCH_SIZE = 4
+BATCH_SIZE = 24
 IMG_DIM = 256
 NUM_EPOCHS = 10
 NUM_EPOCHS_HYPERPARAM = 2
@@ -27,10 +27,10 @@ SAMPLE_OUT_DIR = DIR_MODIFIER + '/sample_out_imgs'
 SUMMARY_DIR = DIR_MODIFIER + '/dev_summary2'
 
 SAVE_CKPT_COUNTER = 1
-DATA_LOAD_PARTITION = 4
+DATA_LOAD_PARTITION = 16
 
 # sampling constants
-TEMPERATURE = 0.38
+TEMPERATURE = 0.1
 
 # test image stuff
 TEST_IMG_NAMES = []
@@ -117,7 +117,7 @@ class ZhangNetConfig(object):
 
     def __init__(self):
         # optimizer params
-        self.lr = 1e-3
+        self.lr = 5e-5
 
         # network params
         self.layer_keys = ['conv1_1', 'conv1_2', 'conv2_1', 'conv2_2', 'conv3_1', 'conv3_2', 'conv3_3',

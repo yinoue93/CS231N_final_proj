@@ -270,9 +270,9 @@ def h52numpy(hdf5Filename, checkMean=False, batch_sz=1, mod_output=False, iter_v
         # make the key size a multiple of @batch_sz
         keys = keys[:batch_sz*int(len(keys)/batch_sz)]
         
-        inData = np.empty(shape=(len(keys), IMG_DIM, IMG_DIM), dtype=float)
+        inData = np.empty(shape=(len(keys), IMG_DIM, IMG_DIM), dtype=np.float16)
         out_img_shape = (len(keys), int(IMG_DIM/4)**2, 512) if mod_output else (len(keys), IMG_DIM, IMG_DIM, 3)
-        outData = np.empty(shape=out_img_shape, dtype=float)
+        outData = np.empty(shape=out_img_shape, dtype=np.float16)
         fileNames = []
         
         for key in keys:

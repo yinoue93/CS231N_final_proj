@@ -53,7 +53,7 @@ class Model(object):
             summary_loss, loss = sess.run([self.summary_loss, self.loss_op], feed_dict=feed_dict)
 
         if self.verbose:
-            print("Batch Loss: {0}".format(loss))
+            #print("Batch Loss: {0}".format(loss))
             pass
 
         return summary_loss, loss
