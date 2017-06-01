@@ -475,18 +475,26 @@ def gatherClassImbalanceInfo(fdir, outName):
         print('%s : #%d/%d' %(fname, i, len(fnames)))
 
         for iter_val in range(DATA_LOAD_PARTITION):
-            _, outData, _ = h52numpy(fname, checkMean=False, batch_sz=1, mod_output=True, iter_val=iter_val, shuffle=False)
+            print(iter_val)
+            try:
+                _, outData, _ = h52numpy(fname, checkMean=False, batch_sz=1, mod_output=True, iter_val=iter_val, shuffle=False)
 
-        outData = np.reshape(outData, newshape=[-1, 512]).astype(float)
-        p += np.sum(outData, axis=0) / outData.shape[0]
+                outData = np.reshape(outData, newshape=[-1, 512]).astype(float)
+                p += np.sum(outData, axis=0) / outData.shape[0]
+            except:
+                pass
 
-    p /= len(fnames)
-    w = 1 / ((1-lamb)*p + lamb/Q)
-    scale = np.sum(p*w)
-    w /= scale
+        tmpP = p / (i+1)
+        w = 1 / ((1-lamb)*tmpP + lamb/Q)
+        scale = np.sum(tmpP*w)
+        w /= scale
+        
+        print(np.sum(tmpP*w), np.sum(tmpP))
+        print(w)
 
-    np.save(outName, w)
+        np.save(outName+'_'+str(i), w)
 
+        
 if __name__ == "__main__":
     # getBWPics()
     # zipDirectory('test_scraped_processed_binary', outputDirName='D:\\Backups\\CS231N_data\\processed_binary', zipFileSz=1024)
@@ -510,6 +518,6 @@ if __name__ == "__main__":
     
     # repackH5('small_dataset/tmpdata', outputDir='small_dataset/tmpdata_classification', compression='lzf')
 
-    # gatherClassImbalanceInfo('tmptmp', 'class_imbalance')
+    gatherClassImbalanceInfo('../data/line_classification/', 'class_imbalance')
         
     pass
