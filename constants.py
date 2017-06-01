@@ -32,12 +32,12 @@ SAVE_CKPT_COUNTER = 1
 DATA_LOAD_PARTITION = 8
 
 # sampling constants
-TEMPERATURE = 0.1
+TEMPERATURE = 0.6
 
 # test image stuff
 TEST_IMG_NAMES = []
 
-NUM_SAMPLES = 16
+NUM_SAMPLES = 32
 
 class UnetConfig(object):
 

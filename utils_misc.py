@@ -265,7 +265,7 @@ def h52numpy(hdf5Filename, checkMean=False, batch_sz=1, mod_output=False, iter_v
             for k in keys:
                 if '_output' not in k:
                     tmpkeys.append(k)
-        keys = tmpkeys
+            keys = tmpkeys
         
         # if iter_val is specified, only load a portion of the data
         if iter_val!=None:

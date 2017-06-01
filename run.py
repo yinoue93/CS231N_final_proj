@@ -155,13 +155,14 @@ def run_model(modelStr, runMode, ckptDir, dataDir, sampleDir, overrideCkpt, numE
                     
                 logToFile(logName, "Epoch %d Dataset #%d loss: %f" %(epochCounter, j, np.mean(mini_loss)))
 
-                # run the sample images through the net to record the results to the Tensorflow (also locally stored)
-                img_summary = curModel.sample(sess, out2board=True, imgName=logDir+'/imgs')
-                file_writer.add_summary(img_summary, counter)
-                
                 counter += 1
-                if is_training and (counter%SAVE_CKPT_COUNTER==0):
-                    save_checkpoint(ckptDir, sess, saver, i_stopped+int(counter/SAVE_CKPT_COUNTER))
+                # run the sample images through the net to record the results to the Tensorflow (also locally stored)
+                if is_training:
+                    img_summary = curModel.sample(sess, out2board=True, imgName=logDir+'/imgs')
+                    file_writer.add_summary(img_summary, counter)
+
+                    if counter%SAVE_CKPT_COUNTER==0:
+                        save_checkpoint(ckptDir, sess, saver, i_stopped+int(counter/SAVE_CKPT_COUNTER))
 
             test_loss = np.mean(batch_loss)
             logToFile(logName, "Epoch %d loss: %f" %(epochCounter, test_loss))
