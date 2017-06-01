@@ -32,7 +32,7 @@ SAVE_CKPT_COUNTER = 1
 DATA_LOAD_PARTITION = 8
 
 # sampling constants
-TEMPERATURE = 0.6
+TEMPERATURE = 0.38
 
 # test image stuff
 TEST_IMG_NAMES = []
@@ -119,7 +119,7 @@ class ZhangNetConfig(object):
 
     def __init__(self):
         # optimizer params
-        self.lr = 1e-2
+        self.lr = 1e-5
 
         self.use_class_imbalance = False
 
