@@ -473,7 +473,8 @@ def gatherClassImbalanceInfo(fdir, outName):
     p = np.zeros(shape=(Q))
     
     fnames = [os.path.join(fdir,nm) for nm in os.listdir(fdir)]
-
+    
+    counter = 0
     for i,fname in enumerate(fnames):
         print('%s : #%d/%d' %(fname, i, len(fnames)))
 
@@ -482,20 +483,25 @@ def gatherClassImbalanceInfo(fdir, outName):
             try:
                 _, outData, _ = h52numpy(fname, checkMean=False, batch_sz=1, mod_output=True, iter_val=iter_val, shuffle=False)
 
-                outData = np.reshape(outData, newshape=[-1, 512]).astype(float)
-                p += np.sum(outData, axis=0) / outData.shape[0]
+                outData = np.reshape(outData, newshape=[-1, 512])
+                p += np.sum(outData, axis=0, dtype=np.float64)
+                counter += outData.shape[0]
             except:
                 pass
+            break
 
-        tmpP = p / (i+1)
+        tmpP = p / counter
         w = 1 / ((1-lamb)*tmpP + lamb/Q)
         scale = np.sum(tmpP*w)
         w /= scale
         
-        print(np.sum(tmpP*w), np.sum(tmpP))
-        print(w)
+        print('counter : '+str(counter))
+        print('sum p : '+str(np.sum(p)))
+        print('sum tmpP : '+str(np.sum(tmpP)))
+        print('sum w*tmpP : '+str(np.sum(w*tmpP)))
+        print('-'*25)
 
-        np.save(outName+'_'+str(i), w)
+        np.save(outName+'_'+str(i), w.astype(np.float32))
 
 
 #----------------------------Weights visualizations-------------------------------
@@ -580,5 +586,6 @@ if __name__ == "__main__":
     # repackH5('small_dataset/tmpdata', outputDir='small_dataset/tmpdata_classification', compression='lzf')
 
     gatherClassImbalanceInfo('../data/line_classification/', 'class_imbalance')
+    # gatherClassImbalanceInfo('../data/line_classification/test', 'class_imbalance')
         
     pass

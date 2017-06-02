@@ -123,7 +123,7 @@ class ZhangNetConfig(object):
 
     def __init__(self):
         # optimizer params
-        self.lr = 1e-5
+        self.lr = 1e-4
 
         self.use_class_imbalance = True
 
