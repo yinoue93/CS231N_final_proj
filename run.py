@@ -80,6 +80,16 @@ def run_model(modelStr, runMode, ckptDir, dataDir, sampleDir, overrideCkpt, numE
         # load checkpoint if necessary
         i_stopped, found_ckpt = get_checkpoint(overrideCkpt, ckptDir, sess, saver)
 
+        # save weights
+        # tfvar = tf.global_variables()
+        # for var in tfvar:
+        #     print(var.name + ' : ' + str(var.get_shape().as_list()))
+        #     if 'combine_3/kernel:0' in var.name:
+        #         break
+        # varVal = sess.run(var)
+        # show_weights(varVal)
+        # exit(0)
+
         if runMode!='sample':
             file_writer = tf.summary.FileWriter(logDir, graph=sess.graph, max_queue=10, flush_secs=30)
 
@@ -111,8 +121,12 @@ def run_model(modelStr, runMode, ckptDir, dataDir, sampleDir, overrideCkpt, numE
                     # Get data
                     print('Reading data in %s, iter_val: %d...' % (data_file, iter_val))
                     try:
-                        input_batches,output_batches,imgNames = h52numpy(data_file, batch_sz=batch_size, iter_val=iter_val, 
-                                                                         mod_output=(modelStr=='zhangnet'))
+                        if runMode=='sample':
+                            input_batches,output_batches,imgNames = h52numpy(data_file, batch_sz=batch_size, iter_val=iter_val, 
+                                                                             mod_output=(modelStr=='zhangnet'), fileNames=PAPER_IMG_NAMES)
+                        else:
+                            input_batches,output_batches,imgNames = h52numpy(data_file, batch_sz=batch_size, iter_val=iter_val, 
+                                                                             mod_output=(modelStr=='zhangnet'))
                     except:
                         logToFile(logName, "File reading failed...")
                         continue
@@ -135,7 +149,7 @@ def run_model(modelStr, runMode, ckptDir, dataDir, sampleDir, overrideCkpt, numE
 
                         if runMode=='sample':
                             curModel.sample(sess, in_batch, out_batch, imgName=[os.path.join(sampleDir, imgName[0])])
-                            if NUM_SAMPLES==count:
+                            if (NUM_SAMPLES-1)==step:
                                 exit(0)
                         else:
                             summary_loss, loss = curModel.run(sess, in_batch, out_batch, is_training, imgName=os.path.join(sampleDir, imgName[0]))

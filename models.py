@@ -71,6 +71,7 @@ class Model(object):
             self.output_placeholder : out_batch
         }
 
+
         in_img, gt_img, pred_img, pred_overlay_img, summary_img, loss = sess.run([self.visual['input'], self.visual['ground_truth'], 
                                                                                   self.visual['predicted'], self.visual['predicted_overlay'], 
                                                                                   self.summary_img, self.loss_op], feed_dict=feed_dict)

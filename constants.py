@@ -37,7 +37,11 @@ TEMPERATURE = 0.38
 # test image stuff
 TEST_IMG_NAMES = []
 
-NUM_SAMPLES = 32
+PAPER_IMG_NAMES = ['1239479_1', '1239481_0', '1239485_0', '1239489_0', '1239493_0', 
+                   '1239495_1', '1239499_0', '1239506_3', '1239506_6', '1239510_0', 
+                   '1239512_0', '1239517_0', '1239519_0', '1239520_1', '1239522_1', 
+                   '1239523_0', '1239533_1', '1239534_0']
+NUM_SAMPLES = len(PAPER_IMG_NAMES)
 
 class UnetConfig(object):
 
@@ -121,7 +125,7 @@ class ZhangNetConfig(object):
         # optimizer params
         self.lr = 1e-5
 
-        self.use_class_imbalance = False
+        self.use_class_imbalance = True
 
         # network params
         self.layer_keys = ['conv1_1', 'conv1_2', 'conv2_1', 'conv2_2', 'conv3_1', 'conv3_2', 'conv3_3',

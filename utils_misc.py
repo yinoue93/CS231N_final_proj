@@ -243,7 +243,7 @@ def h52numpy_parallel(hdf5Filename, checkMean=False, batch_sz=1, mod_output=Fals
     return inData, outData, fileNames
 
 
-def h52numpy(hdf5Filename, checkMean=False, batch_sz=1, mod_output=False, iter_val=None, shuffle=True):
+def h52numpy(hdf5Filename, checkMean=False, batch_sz=1, mod_output=False, iter_val=None, shuffle=True, fileNames=None):
     """
     Returns a shuffled list of input and output data, with each element of the list
     numpy array of shape (batch_sz, H, W, C)
@@ -258,24 +258,27 @@ def h52numpy(hdf5Filename, checkMean=False, batch_sz=1, mod_output=False, iter_v
     count = 0
 
     with h5py.File(hdf5Filename,'r', driver='core') as hf:
-        keys = list(hf.keys())
+        if fileNames==None:
+            keys = list(hf.keys())
 
-        tmpkeys = []
-        if mod_output:
-            for k in keys:
-                if '_output' not in k:
-                    tmpkeys.append(k)
-            keys = tmpkeys
-        
-        # if iter_val is specified, only load a portion of the data
-        if iter_val!=None:
-            stride_sz = int(len(keys)/DATA_LOAD_PARTITION)
-            keys = keys[iter_val*stride_sz:(iter_val+1)*stride_sz]
+            tmpkeys = []
+            if mod_output:
+                for k in keys:
+                    if '_output' not in k:
+                        tmpkeys.append(k)
+                keys = tmpkeys
             
-        if shuffle:
-            random.shuffle(keys)
-        # make the key size a multiple of @batch_sz
-        keys = keys[:batch_sz*int(len(keys)/batch_sz)]
+            # if iter_val is specified, only load a portion of the data
+            if iter_val!=None:
+                stride_sz = int(len(keys)/DATA_LOAD_PARTITION)
+                keys = keys[iter_val*stride_sz:(iter_val+1)*stride_sz]
+                
+            if shuffle:
+                random.shuffle(keys)
+            # make the key size a multiple of @batch_sz
+            keys = keys[:batch_sz*int(len(keys)/batch_sz)]
+        else:
+            keys = fileNames
         
         inData = np.empty(shape=(len(keys), IMG_DIM, IMG_DIM), dtype=np.float16)
         out_img_shape = (len(keys), int(IMG_DIM/4)**2, 512) if mod_output else (len(keys), IMG_DIM, IMG_DIM, 3)
@@ -493,6 +496,64 @@ def gatherClassImbalanceInfo(fdir, outName):
         print(w)
 
         np.save(outName+'_'+str(i), w)
+
+
+#----------------------------Weights visualizations-------------------------------
+
+import matplotlib.pyplot as plt
+from math import sqrt, ceil
+
+def show_weights(weights, names=None):
+    """
+    Visualize the learned weights
+    More suitable for many weights
+    @type   weights :   numpy array
+    @param  weights :   learned weights of shape (N,H,W,C)
+    @type   names   :   list of strings
+    @param  names   :   names of the weights 
+    """
+    plt.imshow(visualize_grid(weights, padding=1).astype('uint8'), cmap='Greys')
+    plt.gca().axis('off')
+    plt.show()
+    plt.savefig('vis.png')
+
+def visualize_grid(Xs, ubound=255.0, padding=1):
+    """
+    Reshape a 4D tensor of image data to a grid for easy visualization.
+    Inputs:
+    - Xs: Data of shape (H, W, C, N)
+    - ubound: Output grid will have values scaled to the range [0, ubound]
+    - padding: The number of blank pixels between elements of the grid
+    """
+    pixel_sz = 2
+    (H, W, C, N) = Xs.shape
+    Xs_resize = np.zeros((H*pixel_sz, W*pixel_sz, C, N))
+    Xs = (ubound*(Xs-np.min(Xs))/(np.max(Xs)-np.min(Xs))).astype('uint8')
+
+    for c in range(C):
+        for n in range(N):
+            Xs_resize[:,:,c,n] = imresize(Xs[:,:,c,n], 200, interp='nearest')
+    Xs = Xs_resize
+
+    (H, W, C, N) = Xs.shape
+    grid_height = H * N + padding * (N-1)
+    grid_width = W * C + padding * (C-1)
+    grid = np.zeros((grid_height, grid_width))
+    y0, y1 = 0, H
+    for y in range(N):
+        x0, x1 = 0, W
+        for x in range(C):
+            img = Xs[:,:,x,y]
+            low, high = np.min(Xs), np.max(Xs)
+            grid[y0:y1, x0:x1] = ubound * (img - low) / (high - low)
+            x0 += W + padding
+            x1 += W + padding
+        y0 += H + padding
+        y1 += H + padding
+
+    return grid
+
+#----------------------------End weights visualizations-------------------------------
 
         
 if __name__ == "__main__":
