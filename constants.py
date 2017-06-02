@@ -119,9 +119,9 @@ class ZhangNetConfig(object):
 
     def __init__(self):
         # optimizer params
-        self.lr = 1e-5
+        self.lr = 1e-4
 
-        self.use_class_imbalance = False
+        self.use_class_imbalance = True
 
         # network params
         self.layer_keys = ['conv1_1', 'conv1_2', 'conv2_1', 'conv2_2', 'conv3_1', 'conv3_2', 'conv3_3',
