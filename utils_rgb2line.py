@@ -174,5 +174,32 @@ def preprocessData(folderName, prune=False):
 
     print('done...')
 
+import re
+from PIL import Image
+from scipy.misc import imread,imsave,toimage,imresize
+def GT2illustration(dirName, outdir):
+    fnames = [os.path.join(dirName, fname) for fname in os.listdir(dirName)]
+    gtNames = []
+    overlayNames = []
+
+    for fname in fnames:
+        reMatch = re.search('input[0-9]+.jpg', fname)
+        if reMatch!=None:
+            overlayNames.append(fname)
+            gtNames.append(fname.replace('input', 'gt'))
+
+    for gName,oName in zip(gtNames,overlayNames):
+        gtImg = imread(gName).astype(float)
+        overlayImg = imread(oName).astype(float)[:,:,np.newaxis]
+
+        gtImg = imresize(gtImg, size=[int(IMG_SZ/4), int(IMG_SZ/4)])
+        gtImg = imresize(gtImg, size=[int(IMG_SZ), int(IMG_SZ)])
+
+        img = gtImg * overlayImg/255.0
+
+        toimage(img, cmin=0, cmax=255).save(os.path.join(outdir,gName[gName.rfind('\\')+1:]))
+
+
 if __name__ == "__main__":
-    preprocessData('../images/sampleImg')
+    # preprocessData('../images/sampleImg')
+    GT2illustration('../results/imgs/unet/iter24', '../results/imgs/gt')
