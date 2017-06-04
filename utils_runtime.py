@@ -85,10 +85,11 @@ def createLog(fName_mod=''):
     return dirName,fileName
 
 def logToFile(logName, contents):
+    print(contents)
+    
     if logName==None:
         return
     
-    print(contents)
     with open(logName, 'a+') as f:
         f.write(contents + '\n')
 

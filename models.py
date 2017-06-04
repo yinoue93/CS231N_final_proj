@@ -146,12 +146,12 @@ class ZhangNet(Model):
     def __init__(self, input_shape, output_shape, verbose=True):
         super().__init__(input_shape, output_shape, verbose=verbose)
 
+        self.config = ZhangNetConfig()
+        
         # load sample dataset
-        sample_data_dir = SAMPLE_DATA_FILE_CLASSIFICATION if self.color_space=='rgb' else SAMPLE_DATA_FILE_CLASSIFICATION_LCH
+        sample_data_dir = SAMPLE_DATA_FILE_CLASSIFICATION if self.config.color_space=='rgb' else SAMPLE_DATA_FILE_CLASSIFICATION_LCH
         self.SAMPLE_INPUT, self.SAMPLE_OUTPUT, self.SAMPLE_NAMES = h52numpy(sample_data_dir, checkMean=False, batch_sz=11, 
                                                                             mod_output=True, iter_val=None, shuffle=False)
-
-        self.config = ZhangNetConfig()
 
         self.CLASS_MAP_R = tf.constant(np.asarray([32*i+16 for i in range(8)]*64), dtype=tf.float32)
         self.CLASS_MAP_G = tf.constant(np.asarray([32*int(i/8)+16 for i in range(64)]*8), dtype=tf.float32)

@@ -308,7 +308,7 @@ def h52numpy(hdf5Filename, checkMean=False, batch_sz=1, mod_output=False, iter_v
             keys = keys[:batch_sz*int(len(keys)/batch_sz)]
         else:
             keys = fileNames
-        
+            
         inData = np.empty(shape=(len(keys), IMG_DIM, IMG_DIM), dtype=np.float16)
         out_img_shape = (len(keys), int(IMG_DIM/4)**2, 512) if mod_output else (len(keys), IMG_DIM, IMG_DIM, 3)
         outData = np.empty(shape=out_img_shape, dtype=np.float16)
@@ -612,9 +612,9 @@ if __name__ == "__main__":
     
     # unzipper(('D:\\Backups\\CS231N_data\\scraped\\compressed_26', 'tmp4'))
     
-    repackH5('tmp2', outputDir='tmp', colorMap='lch', compression='lzf')
+    # repackH5('../data/line', outputDir='../data/line_classification_lch', colorMap='lch', compression='lzf')
 
-    # gatherClassImbalanceInfo('../data/line_classification/', 'class_imbalance')
+    gatherClassImbalanceInfo('../data/line_classification_lch/', 'class_imbalance_lch')
     # gatherClassImbalanceInfo('../data/line_classification/test', 'class_imbalance')
         
     pass

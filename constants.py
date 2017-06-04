@@ -1,5 +1,5 @@
 # multi processing constant
-POOL_WORKER_COUNT = 4
+POOL_WORKER_COUNT = 8
 
 # dataset image mean constants
 REDUCED_R_MEAN = 167
@@ -29,21 +29,22 @@ CKPT_DIR_DEFAULT = DIR_MODIFIER + '/temp_ckpt'
 SUMMARY_DIR = DIR_MODIFIER + '/dev_summary2'
 
 SAVE_CKPT_COUNTER = 1
-DATA_LOAD_PARTITION = 8
+DATA_LOAD_PARTITION = 32
 
 # sampling constants
 TEMPERATURE = 0.3
 SAMPLE_DATA_FILE_CLASSIFICATION = 'sample_data_line_classification'
-SAMPLE_DATA_FILE_CLASSIFICATION_LCH = 'sample_data_line_classification'
+SAMPLE_DATA_FILE_CLASSIFICATION_LCH = 'sample_data_line_classification_lch'
 SAMPLE_OUT_DIR = DIR_MODIFIER + '/sample_out_imgs'
 
 # test image stuff
 TEST_IMG_NAMES = []
 
-PAPER_IMG_NAMES = ['1239479_1', '1239481_0', '1239485_0', '1239489_0', '1239493_0', 
-                   '1239495_1', '1239499_0', '1239506_3', '1239506_6', '1239510_0', 
-                   '1239512_0', '1239517_0', '1239519_0', '1239520_1', '1239522_1', 
-                   '1239523_0', '1239533_1', '1239534_0']
+PAPER_IMG_NAMES = None
+# PAPER_IMG_NAMES = ['1239479_1', '1239481_0', '1239485_0', '1239489_0', '1239493_0', 
+#                    '1239495_1', '1239499_0', '1239506_3', '1239506_6', '1239510_0', 
+#                    '1239512_0', '1239517_0', '1239519_0', '1239520_1', '1239522_1', 
+#                    '1239523_0', '1239533_1', '1239534_0']
 # PAPER_IMG_NAMES = ['1239479_0', '1239479_1', '1239481_0', '1239481_1', '1239485_0', '1239489_0', '1239489_1', '1239493_0', '1239493_1', '1239495_0', 
 #                    '1239495_1', '1239497_0', '1239497_1', '1239499_0', '1239499_1', '1239506_0', '1239506_1', '1239506_2', '1239506_3', '1239506_4', 
 #                    '1239506_5', '1239506_6', '1239508_0', '1239508_1', '1239509_0', '1239509_1', '1239510_0', '1239510_1', '1239512_0', '1239512_1', 
@@ -69,7 +70,7 @@ PAPER_IMG_NAMES = ['1239479_1', '1239481_0', '1239485_0', '1239489_0', '1239493_
 #                    '1239669_1', '1239670_0', '1239670_1', '1239672_0', '1239674_0', '1239674_1', '1239675_0', '1239675_1', '1239676_0', '1239677_0', 
 #                    '1239677_1', '1239680_0', '1239680_1', '1239681_0', '1239681_1', '1239682_0', '1239682_1', '1239684_0', '1239684_1', '1239685_0', 
 #                    '1239685_1', '1239686_0', '1239686_1', '1239687_0', '1239687_1', '1239688_0', '1239688_1', '1239690_0', '1239690_1', '1239691_0']
-NUM_SAMPLES = len(PAPER_IMG_NAMES)
+NUM_SAMPLES = 16 if PAPER_IMG_NAMES==None else len(PAPER_IMG_NAMES)
 
 class UnetConfig(object):
 
