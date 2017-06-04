@@ -40,7 +40,9 @@ SAMPLE_OUT_DIR = DIR_MODIFIER + '/sample_out_imgs'
 # test image stuff
 TEST_IMG_NAMES = []
 
-PAPER_IMG_NAMES = None
+PAPER_IMG_NAMES = ['1239646_0', '1239647_0', '1239603_0', '1239585_0', '1239499_0', '1239616_0',
+                   '1239663_1', '1239669_0', '1239691_0', '1239684_0', '1239658_0', '1239554_0',
+                   '1239512_0', '1239506_0', '1239493_1', '1239516_1', '1239514_0', '1239558_0']
 # PAPER_IMG_NAMES = ['1239479_1', '1239481_0', '1239485_0', '1239489_0', '1239493_0', 
 #                    '1239495_1', '1239499_0', '1239506_3', '1239506_6', '1239510_0', 
 #                    '1239512_0', '1239517_0', '1239519_0', '1239520_1', '1239522_1', 
@@ -155,7 +157,7 @@ class ZhangNetConfig(object):
         self.lr = 1e-5
 
         self.use_class_imbalance = True
-        self.color_space = 'lch'
+        self.color_space = 'rgb'
 
         # network params
         self.layer_keys = ['conv1_1', 'conv1_2', 'conv2_1', 'conv2_2', 'conv3_1', 'conv3_2', 'conv3_3',
