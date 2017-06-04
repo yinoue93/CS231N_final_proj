@@ -172,14 +172,26 @@ class ZhangNet(Model):
         unnormalized = tf.exp((logits - tf.reduce_max(logits, axis=2, keep_dims=True)) / TEMPERATURE)
         probabilities = unnormalized / tf.reduce_sum(unnormalized, axis=2, keep_dims=True)
 
-        out_img = tf.stack((tf.reduce_sum(self.CLASS_MAP_R * probabilities, axis=2), 
-                            tf.reduce_sum(self.CLASS_MAP_G * probabilities, axis=2), 
-                            tf.reduce_sum(self.CLASS_MAP_B * probabilities, axis=2)), axis=2)
-        
-        out_img = tf.reshape(out_img, shape=[batch_sz, out_img_dim, out_img_dim, 3])
+        if self.config.color_space=='rgb':
+            out_img = tf.stack((tf.reduce_sum(self.CLASS_MAP_R * probabilities, axis=2), 
+                                tf.reduce_sum(self.CLASS_MAP_G * probabilities, axis=2), 
+                                tf.reduce_sum(self.CLASS_MAP_B * probabilities, axis=2)), axis=2)
+            
+            out_img = tf.reshape(out_img, shape=[batch_sz, out_img_dim, out_img_dim, 3])
 
-        # convert from 255 scale to the appropriate scale for lch, and then convert to rgb
-        if self.config.color_space=='lch':
+        elif self.config.color_space=='lch':
+            # convert from 255 scale to the appropriate scale for lch, and then convert to rgb
+            # treat H differently because it is a circular value (ref: https://en.wikipedia.org/wiki/Mean_of_circular_quantities)
+            # H = tf.reduce_sum(self.CLASS_MAP_B * probabilities, axis=2)
+            hAngles = self.CLASS_MAP_B * probabilities
+            H = tf.atan2(tf.reduce_sum(tf.sin(hAngles), axis=2), tf.reduce_sum(tf.sin(hAngles), axis=2))
+
+            out_img = tf.stack((tf.reduce_sum(self.CLASS_MAP_R * probabilities, axis=2), 
+                                tf.reduce_sum(self.CLASS_MAP_G * probabilities, axis=2), 
+                                H), axis=2)
+
+            out_img = tf.reshape(out_img, shape=[batch_sz, out_img_dim, out_img_dim, 3])
+
             out_img *= [100/255.0, CHROMA_MAX/255.0, (2*np.pi)/255.0]
             out_img = tf.reshape(tf.py_func(lch2rgb_batch, [out_img], Tout=tf.float32), shape=tf.shape(out_img))
 

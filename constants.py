@@ -157,7 +157,7 @@ class ZhangNetConfig(object):
         self.lr = 1e-4
 
         self.use_class_imbalance = True
-        self.color_space = 'rgb'
+        self.color_space = 'lch'
 
         # network params
         self.layer_keys = ['conv1_1', 'conv1_2', 'conv2_1', 'conv2_2', 'conv3_1', 'conv3_2', 'conv3_3',
