@@ -1,5 +1,5 @@
 # multi processing constant
-POOL_WORKER_COUNT = 4
+POOL_WORKER_COUNT = 1
 
 # dataset image mean constants
 REDUCED_R_MEAN = 167
@@ -15,9 +15,10 @@ BATCH_SIZE = 24
 IMG_DIM = 256
 NUM_EPOCHS = 10
 NUM_EPOCHS_HYPERPARAM = 2
+USEFUL_DATA_DIR = 'useful_data/'
 
-SAMPLE_DATA_FILE = 'sample_data_line'
-CLASS_IMBALANCE_FILE = 'class_imbalance.npy'
+CLASS_IMBALANCE_FILE = USEFUL_DATA_DIR + 'class_imbalance.npy'
+CLASS_IMBALANCE_FILE_LCH = USEFUL_DATA_DIR + 'class_imbalance_lch.npy'
 
 # dataset constants
 DIR_MODIFIER = '../data'
@@ -33,8 +34,9 @@ DATA_LOAD_PARTITION = 8
 
 # sampling constants
 TEMPERATURE = 0.3
-SAMPLE_DATA_FILE_CLASSIFICATION = 'sample_data_line_classification'
-SAMPLE_DATA_FILE_CLASSIFICATION_LCH = 'sample_data_line_classification'
+SAMPLE_DATA_FILE = USEFUL_DATA_DIR + 'sample_data_line'
+SAMPLE_DATA_FILE_CLASSIFICATION = USEFUL_DATA_DIR + 'sample_data_line_classification'
+SAMPLE_DATA_FILE_CLASSIFICATION_LCH = USEFUL_DATA_DIR + 'sample_data_line_classification_lch'
 SAMPLE_OUT_DIR = DIR_MODIFIER + '/sample_out_imgs'
 
 # test image stuff
@@ -72,7 +74,7 @@ PAPER_IMG_NAMES = ['1239646_0', '1239647_0', '1239603_0', '1239585_0', '1239499_
 #                    '1239669_1', '1239670_0', '1239670_1', '1239672_0', '1239674_0', '1239674_1', '1239675_0', '1239675_1', '1239676_0', '1239677_0', 
 #                    '1239677_1', '1239680_0', '1239680_1', '1239681_0', '1239681_1', '1239682_0', '1239682_1', '1239684_0', '1239684_1', '1239685_0', 
 #                    '1239685_1', '1239686_0', '1239686_1', '1239687_0', '1239687_1', '1239688_0', '1239688_1', '1239690_0', '1239690_1', '1239691_0']
-NUM_SAMPLES = len(PAPER_IMG_NAMES)
+NUM_SAMPLES = 16 if PAPER_IMG_NAMES==None else len(PAPER_IMG_NAMES)
 
 class UnetConfig(object):
 

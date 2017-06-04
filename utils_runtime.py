@@ -41,6 +41,9 @@ def get_checkpoint(override, ckpt_dir, sess, saver):
 
 
 def save_checkpoint(ckpt_dir, sess, saver, i):
+    if 'model.ckpt' in ckpt_dir:
+        ckpt_dir = ckpt_dir[:ckpt_dir.rfind('/')]
+    
     checkpoint_path = os.path.join(ckpt_dir, 'model.ckpt')
     saver.save(sess, checkpoint_path, global_step=i)
 
@@ -82,10 +85,11 @@ def createLog(fName_mod=''):
     return dirName,fileName
 
 def logToFile(logName, contents):
+    print(contents)
+    
     if logName==None:
         return
     
-    print(contents)
     with open(logName, 'a+') as f:
         f.write(contents + '\n')
 

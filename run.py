@@ -117,12 +117,13 @@ def run_model(modelStr, runMode, ckptDir, dataDir, sampleDir, overrideCkpt, numE
                     # Get data
                     print('Reading data in %s, iter_val: %d...' % (data_file, iter_val))
                     try:
-                        if runMode=='sample':
+                        if runMode=='sample' and PAPER_IMG_NAMES!=None:
                             input_batches,output_batches,imgNames = h52numpy(data_file, batch_sz=batch_size, iter_val=iter_val, 
                                                                              mod_output=(modelStr=='zhangnet'), fileNames=PAPER_IMG_NAMES)
+                            print(input_batches.shape)
                         else:
                             input_batches,output_batches,imgNames = h52numpy(data_file, batch_sz=batch_size, iter_val=iter_val, 
-                                                                             mod_output=(modelStr=='zhangnet'))
+                                                                                 mod_output=(modelStr=='zhangnet'))
                     except:
                         logToFile(logName, "File reading failed...")
                         continue
