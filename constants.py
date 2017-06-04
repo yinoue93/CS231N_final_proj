@@ -1,5 +1,5 @@
 # multi processing constant
-POOL_WORKER_COUNT = 8
+POOL_WORKER_COUNT = 1
 
 # dataset image mean constants
 REDUCED_R_MEAN = 167
@@ -15,9 +15,10 @@ BATCH_SIZE = 24
 IMG_DIM = 256
 NUM_EPOCHS = 10
 NUM_EPOCHS_HYPERPARAM = 2
+USEFUL_DATA_DIR = 'useful_data/'
 
-SAMPLE_DATA_FILE = 'sample_data_line'
-CLASS_IMBALANCE_FILE = 'class_imbalance.npy'
+CLASS_IMBALANCE_FILE = USEFUL_DATA_DIR + 'class_imbalance.npy'
+CLASS_IMBALANCE_FILE_LCH = USEFUL_DATA_DIR + 'class_imbalance_lch.npy'
 
 # dataset constants
 DIR_MODIFIER = '../data'
@@ -29,12 +30,13 @@ CKPT_DIR_DEFAULT = DIR_MODIFIER + '/temp_ckpt'
 SUMMARY_DIR = DIR_MODIFIER + '/dev_summary2'
 
 SAVE_CKPT_COUNTER = 1
-DATA_LOAD_PARTITION = 32
+DATA_LOAD_PARTITION = 8
 
 # sampling constants
 TEMPERATURE = 0.3
-SAMPLE_DATA_FILE_CLASSIFICATION = 'sample_data_line_classification'
-SAMPLE_DATA_FILE_CLASSIFICATION_LCH = 'sample_data_line_classification_lch'
+SAMPLE_DATA_FILE = USEFUL_DATA_DIR + 'sample_data_line'
+SAMPLE_DATA_FILE_CLASSIFICATION = USEFUL_DATA_DIR + 'sample_data_line_classification'
+SAMPLE_DATA_FILE_CLASSIFICATION_LCH = USEFUL_DATA_DIR + 'sample_data_line_classification_lch'
 SAMPLE_OUT_DIR = DIR_MODIFIER + '/sample_out_imgs'
 
 # test image stuff
@@ -154,10 +156,10 @@ class ZhangNetConfig(object):
 
     def __init__(self):
         # optimizer params
-        self.lr = 1e-5
+        self.lr = 1e-4
 
         self.use_class_imbalance = True
-        self.color_space = 'rgb'
+        self.color_space = 'lch'
 
         # network params
         self.layer_keys = ['conv1_1', 'conv1_2', 'conv2_1', 'conv2_2', 'conv3_1', 'conv3_2', 'conv3_3',

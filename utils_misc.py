@@ -554,9 +554,9 @@ if __name__ == "__main__":
     
     # unzipper(('D:\\Backups\\CS231N_data\\scraped\\compressed_26', 'tmp4'))
     
-    # repackH5('../data/line', outputDir='../data/line_classification_lch', colorMap='lch', compression='lzf')
+    repackH5('../data/line', outputDir='../data/line_classification_lch', colorMap='lch', compression='lzf')
 
-    gatherClassImbalanceInfo('../data/line_classification_lch/', 'class_imbalance_lch')
+    # gatherClassImbalanceInfo('../data/line_classification_lch/', 'class_imbalance_lch')
     # gatherClassImbalanceInfo('../data/line_classification/test', 'class_imbalance')
         
     pass

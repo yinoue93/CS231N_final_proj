@@ -217,7 +217,8 @@ class ZhangNet(Model):
         xloss = tf.nn.softmax_cross_entropy_with_logits(logits=self.layers['logits'], labels=self.output_placeholder)
 
         if self.config.use_class_imbalance:
-            class_weights = tf.constant(np.load(CLASS_IMBALANCE_FILE), dtype=tf.float32)
+            imbalance_fname = CLASS_IMBALANCE_FILE if self.config.color_space=='rgb' else CLASS_IMBALANCE_FILE_LCH
+            class_weights = tf.constant(np.load(imbalance_fname), dtype=tf.float32)
             max_indx = tf.argmax(self.output_placeholder, axis=2)
 
             weight_vec = tf.gather(params=class_weights, indices=max_indx)

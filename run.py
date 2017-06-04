@@ -116,17 +116,17 @@ def run_model(modelStr, runMode, ckptDir, dataDir, sampleDir, overrideCkpt, numE
                 for iter_val in range(DATA_LOAD_PARTITION):
                     # Get data
                     print('Reading data in %s, iter_val: %d...' % (data_file, iter_val))
-                    #try:
-                    if runMode=='sample' and PAPER_IMG_NAMES!=None:
-                        input_batches,output_batches,imgNames = h52numpy(data_file, batch_sz=batch_size, iter_val=iter_val, 
-                                                                         mod_output=(modelStr=='zhangnet'), fileNames=PAPER_IMG_NAMES)
-                        print(input_batches.shape)
-                    else:
-                        input_batches,output_batches,imgNames = h52numpy(data_file, batch_sz=batch_size, iter_val=iter_val, 
-                                                                             mod_output=(modelStr=='zhangnet'))
-                    #except:
-                    #    logToFile(logName, "File reading failed...")
-                    #    continue
+                    try:
+                        if runMode=='sample' and PAPER_IMG_NAMES!=None:
+                            input_batches,output_batches,imgNames = h52numpy(data_file, batch_sz=batch_size, iter_val=iter_val, 
+                                                                             mod_output=(modelStr=='zhangnet'), fileNames=PAPER_IMG_NAMES)
+                            print(input_batches.shape)
+                        else:
+                            input_batches,output_batches,imgNames = h52numpy(data_file, batch_sz=batch_size, iter_val=iter_val, 
+                                                                                 mod_output=(modelStr=='zhangnet'))
+                    except:
+                        logToFile(logName, "File reading failed...")
+                        continue
                     print('Done reading, running the network (%d of %d)' % (j+1, len(dataset_filenames)))
 
                     bar = progressbar.ProgressBar(maxval=int(len(input_batches)/batch_size))
