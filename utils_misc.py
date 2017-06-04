@@ -532,64 +532,6 @@ def gatherClassImbalanceInfo(fdir, outName):
 
         np.save(outName+'_'+str(i), w.astype(np.float32))
 
-
-#----------------------------Weights visualizations-------------------------------
-
-import matplotlib.pyplot as plt
-from math import sqrt, ceil
-
-def show_weights(weights, names=None):
-    """
-    Visualize the learned weights
-    More suitable for many weights
-    @type   weights :   numpy array
-    @param  weights :   learned weights of shape (N,H,W,C)
-    @type   names   :   list of strings
-    @param  names   :   names of the weights 
-    """
-    plt.imshow(visualize_grid(weights, padding=1).astype('uint8'), cmap='Greys')
-    plt.gca().axis('off')
-    plt.show()
-    plt.savefig('vis.png')
-
-def visualize_grid(Xs, ubound=255.0, padding=1):
-    """
-    Reshape a 4D tensor of image data to a grid for easy visualization.
-    Inputs:
-    - Xs: Data of shape (H, W, C, N)
-    - ubound: Output grid will have values scaled to the range [0, ubound]
-    - padding: The number of blank pixels between elements of the grid
-    """
-    pixel_sz = 2
-    (H, W, C, N) = Xs.shape
-    Xs_resize = np.zeros((H*pixel_sz, W*pixel_sz, C, N))
-    Xs = (ubound*(Xs-np.min(Xs))/(np.max(Xs)-np.min(Xs))).astype('uint8')
-
-    for c in range(C):
-        for n in range(N):
-            Xs_resize[:,:,c,n] = imresize(Xs[:,:,c,n], 200, interp='nearest')
-    Xs = Xs_resize
-
-    (H, W, C, N) = Xs.shape
-    grid_height = H * N + padding * (N-1)
-    grid_width = W * C + padding * (C-1)
-    grid = np.zeros((grid_height, grid_width))
-    y0, y1 = 0, H
-    for y in range(N):
-        x0, x1 = 0, W
-        for x in range(C):
-            img = Xs[:,:,x,y]
-            low, high = np.min(Xs), np.max(Xs)
-            grid[y0:y1, x0:x1] = ubound * (img - low) / (high - low)
-            x0 += W + padding
-            x1 += W + padding
-        y0 += H + padding
-        y1 += H + padding
-
-    return grid
-
-#----------------------------End weights visualizations-------------------------------
-
         
 if __name__ == "__main__":
     # getBWPics()
@@ -612,7 +554,7 @@ if __name__ == "__main__":
     
     # unzipper(('D:\\Backups\\CS231N_data\\scraped\\compressed_26', 'tmp4'))
     
-    repackH5('tmp2', outputDir='tmp', colorMap='lch', compression='lzf')
+    # repackH5('tmp2', outputDir='tmp', colorMap='lch', compression='lzf')
 
     # gatherClassImbalanceInfo('../data/line_classification/', 'class_imbalance')
     # gatherClassImbalanceInfo('../data/line_classification/test', 'class_imbalance')

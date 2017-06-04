@@ -10,6 +10,7 @@ import progressbar
 
 from utils_runtime import *
 from utils_misc import *
+from utils_postprocess import *
 
 from models import Unet,ZhangNet
 from argparse import ArgumentParser
@@ -81,13 +82,8 @@ def run_model(modelStr, runMode, ckptDir, dataDir, sampleDir, overrideCkpt, numE
         i_stopped, found_ckpt = get_checkpoint(overrideCkpt, ckptDir, sess, saver)
 
         # save weights
-        # tfvar = tf.global_variables()
-        # for var in tfvar:
-        #     print(var.name + ' : ' + str(var.get_shape().as_list()))
-        #     if 'combine_3/kernel:0' in var.name:
-        #         break
-        # varVal = sess.run(var)
-        # show_weights(varVal)
+        # printVars()
+        # show_weights(getVar(sess, 'combine_3/kernel:0'))
         # exit(0)
 
         if runMode!='sample':
