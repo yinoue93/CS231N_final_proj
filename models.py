@@ -147,7 +147,8 @@ class ZhangNet(Model):
         super().__init__(input_shape, output_shape, verbose=verbose)
 
         # load sample dataset
-        self.SAMPLE_INPUT, self.SAMPLE_OUTPUT, self.SAMPLE_NAMES = h52numpy(SAMPLE_DATA_FILE_CLASSIFICATION, checkMean=False, batch_sz=11, 
+        sample_data_dir = SAMPLE_DATA_FILE_CLASSIFICATION if self.color_space=='rgb' else SAMPLE_DATA_FILE_CLASSIFICATION_LCH
+        self.SAMPLE_INPUT, self.SAMPLE_OUTPUT, self.SAMPLE_NAMES = h52numpy(sample_data_dir, checkMean=False, batch_sz=11, 
                                                                             mod_output=True, iter_val=None, shuffle=False)
 
         self.config = ZhangNetConfig()

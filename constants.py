@@ -8,7 +8,7 @@ REDUCED_B_MEAN = 147
 LINE_MEAN = 219
 BINARY_MEAN = 225
 
-CHROMA_MAX = 80
+CHROMA_MAX = 100
 
 # network constants
 BATCH_SIZE = 24
@@ -34,6 +34,7 @@ DATA_LOAD_PARTITION = 8
 # sampling constants
 TEMPERATURE = 0.3
 SAMPLE_DATA_FILE_CLASSIFICATION = 'sample_data_line_classification'
+SAMPLE_DATA_FILE_CLASSIFICATION_LCH = 'sample_data_line_classification'
 SAMPLE_OUT_DIR = DIR_MODIFIER + '/sample_out_imgs'
 
 # test image stuff
