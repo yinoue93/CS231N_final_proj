@@ -8,6 +8,8 @@ import scipy
 import math
 import shutil
 
+import skimage.color as color
+
 from constants import *
 
 from shutil import copyfile
@@ -96,15 +98,36 @@ def numpy2jpg(outputFname, arr, overlay=None, meanVal=0, verbose=False):
 
 
 def gaussianDist(pt1, pt2):
-    std = 0.5
+    std = 0.25
     sqdist = np.sum((pt1-pt2)**2, axis=1)
     return np.exp(-sqdist/std)
 
-def map_output(outData, outImgSz):
+def rgb2lch(rgb):
+    return color.lab2lch(color.rgb2lab(rgb/255.0))
+
+def lch2rgb_batch(lch):
+    rgbOut  = np.zeros_like(lch)
+    for i in range(lch.shape[0]):
+        rgbOut[i,:,:,:] = lch2rgb(lch[i,:,:,:])
+    return rgbOut
+
+def lch2rgb(lch):
+    return color.lab2rgb(color.lch2lab(lch.astype(float)))*255
+
+def map_output(outData, outImgSz, cMap):
     import itertools
     
     # resize
     resizedData = imresize(outData, size=[outImgSz, outImgSz]).astype(int)
+
+    if cMap=='lch':
+        resizedData = rgb2lch(resizedData)
+
+        # convert to 255 scale, because I don't want to rewrite the code again
+        resizedData[:,:,0] = resizedData[:,:,0] * 255.0/100
+        resizedData[:,:,1][resizedData[:,:,1]>CHROMA_MAX] = CHROMA_MAX
+        resizedData[:,:,1] = resizedData[:,:,1] * 255.0/CHROMA_MAX
+        resizedData[:,:,2] = resizedData[:,:,2] * 255.0/(2*np.pi)
     
     # create 1-hot vector
     encoding_sz = outImgSz*outImgSz
@@ -115,18 +138,22 @@ def map_output(outData, outImgSz):
     
     discr_data_int = discr_data.astype(int)
     rval = discr_data_int[:,0]
-    gval = discr_data_int[:,1] << 3
-    bval = discr_data_int[:,2] << 6
+    gval = discr_data_int[:,1]
+    bval = discr_data_int[:,2]
     
     rs = [(rval, 0), (np.minimum(rval+1, 7), 1),  (np.maximum(rval-1, 0), -1)]
-    gs = [(gval, 0), (np.minimum(gval+8, 56), 1),  (np.maximum(gval-8, 0), -1)]
-    bs = [(bval, 0), (np.minimum(bval+64, 448), 1),  (np.maximum(bval-64, 0), -1)]
+    gs = [(gval, 0), (np.minimum(gval+1, 7), 1),  (np.maximum(gval-1, 0), -1)]
+
+    if cMap=='rgb':
+        bs = [(bval, 0), (np.minimum(bval+1, 7), 1),  (np.maximum(bval-1, 0), -1)]
+    elif cMap=='lch':
+        bs = [(bval, 0), ((bval+1)%8, 1),  ((bval-1)%8, -1)]
     
     coords = [rs, gs, bs]
     params = list(itertools.product(*coords))
     
     for (rv, roff),(gv, goff),(bv, boff) in params:    
-        indx_1d = (rv + gv + bv)
+        indx_1d = rv + (gv<<3) + (bv<<6)
         soft_encoding[range(encoding_sz), indx_1d] += gaussianDist(centered, [roff, goff, boff])
     
     # normalize, and clean up for efficient storage
@@ -135,16 +162,18 @@ def map_output(outData, outImgSz):
     soft_encoding[soft_encoding<1e-4] = 0
     soft_encoding = soft_encoding / np.sum(soft_encoding, axis=1)[:, np.newaxis]
     
-#    picid = 2500
-#    print(soft_encoding[picid,:])
-#    print(resizedData.reshape([encoding_sz,-1])[picid])
-#    print(discr_data[picid])
-#    print(rval[picid], gval[picid], bval[picid])
-#    print(centered[picid, 0],centered[picid, 1],centered[picid, 2])
-#    indx = (rval[picid] + gval[picid] + bval[picid])
-#    print(indx)
-#    print(soft_encoding[picid,indx])
-#    exit(0)
+    # picid = 2500
+    # print(soft_encoding[picid,:])
+    # print(resizedData.reshape([encoding_sz,-1])[picid])
+    # print(discr_data[picid])
+    # print(rval[picid], gval[picid], bval[picid])
+    # print(centered[picid, 0],centered[picid, 1],centered[picid, 2])
+    # indx = (rval[picid] + (gval[picid]<<3) + (bval[picid]<<6))
+    # print(indx)
+    # print(soft_encoding[picid,indx])
+    # print(np.nonzero(soft_encoding[picid])[0].shape)
+    # print(np.nonzero(soft_encoding[picid]))
+    # exit(0)
     
     return soft_encoding
 
@@ -318,7 +347,7 @@ def h52numpy(hdf5Filename, checkMean=False, batch_sz=1, mod_output=False, iter_v
     return inData, outData, fileNames
 
 def repackH5Worker(dataPack):
-    fromName, toName, compression = dataPack
+    fromName, toName, cMap, compression = dataPack
     print('Working on %s...' % fromName)
 
     with h5py.File(fromName,'r') as fromHF, h5py.File(toName,'w') as toHF:
@@ -328,12 +357,12 @@ def repackH5Worker(dataPack):
             data = fromHF.get(key)
 
             inData = data[:,:,0]
-            outData = map_output(data[:,:,1:].astype(int), int(IMG_DIM/4))
+            outData = map_output(data[:,:,1:].astype(int), int(IMG_DIM/4), cMap)
             
             toHF.create_dataset(key, data=inData, compression=compression)
             toHF.create_dataset(key+'_output', data=outData, compression=compression)
 
-def repackH5(dataDir, outputDir, compression='gzip'):
+def repackH5(dataDir, outputDir, colorMap='rgb', compression='gzip'):
     makeDir(outputDir)
 
     dataPacks = []
@@ -344,7 +373,7 @@ def repackH5(dataDir, outputDir, compression='gzip'):
         if (os.path.isfile(toName)) or ('filepart' in fromName):
             print('Excluding %s, because the file already exists, or is a .filepart...' % toName)
         else:
-            dataPacks.append((fromName, toName, compression))
+            dataPacks.append((fromName, toName, colorMap, compression))
 
     p = Pool(POOL_WORKER_COUNT)
     p.map(repackH5Worker, dataPacks)
@@ -583,9 +612,9 @@ if __name__ == "__main__":
     
     # unzipper(('D:\\Backups\\CS231N_data\\scraped\\compressed_26', 'tmp4'))
     
-    # repackH5('small_dataset/tmpdata', outputDir='small_dataset/tmpdata_classification', compression='lzf')
+    repackH5('tmp2', outputDir='tmp', colorMap='lch', compression='lzf')
 
-    gatherClassImbalanceInfo('../data/line_classification/', 'class_imbalance')
+    # gatherClassImbalanceInfo('../data/line_classification/', 'class_imbalance')
     # gatherClassImbalanceInfo('../data/line_classification/test', 'class_imbalance')
         
     pass

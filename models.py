@@ -5,7 +5,7 @@ import os
 
 from constants import *
 from layers import *
-from utils_misc import numpy2jpg,h52numpy
+from utils_misc import numpy2jpg,h52numpy,lch2rgb_batch
 from scipy.misc import imresize,toimage
 
 class Model(object):
@@ -147,7 +147,8 @@ class ZhangNet(Model):
         super().__init__(input_shape, output_shape, verbose=verbose)
 
         # load sample dataset
-        self.SAMPLE_INPUT, self.SAMPLE_OUTPUT, self.SAMPLE_NAMES = h52numpy(SAMPLE_DATA_FILE_CLASSIFICATION, checkMean=False, batch_sz=11, 
+        sample_data_dir = SAMPLE_DATA_FILE_CLASSIFICATION if self.color_space=='rgb' else SAMPLE_DATA_FILE_CLASSIFICATION_LCH
+        self.SAMPLE_INPUT, self.SAMPLE_OUTPUT, self.SAMPLE_NAMES = h52numpy(sample_data_dir, checkMean=False, batch_sz=11, 
                                                                             mod_output=True, iter_val=None, shuffle=False)
 
         self.config = ZhangNetConfig()
@@ -176,6 +177,12 @@ class ZhangNet(Model):
                             tf.reduce_sum(self.CLASS_MAP_B * probabilities, axis=2)), axis=2)
         
         out_img = tf.reshape(out_img, shape=[batch_sz, out_img_dim, out_img_dim, 3])
+
+        # convert from 255 scale to the appropriate scale for lch, and then convert to rgb
+        if self.config.color_space=='lch':
+            out_img *= [100/255.0, CHROMA_MAX/255.0, (2*np.pi)/255.0]
+            out_img = tf.reshape(tf.py_func(lch2rgb_batch, [out_img], Tout=tf.float32), shape=tf.shape(out_img))
+
         out_img = tf.image.resize_images(out_img, size=[IMG_DIM,IMG_DIM], method=tf.image.ResizeMethod.BILINEAR)
 
         return out_img
