@@ -532,6 +532,18 @@ def gatherClassImbalanceInfo(fdir, outName):
 
         np.save(outName+'_'+str(i), w.astype(np.float32))
 
+def createClassMatrix(outName):
+    labels = np.asarray([32*int(i/8)+16 for i in range(64)]*8)
+    labels_len = len(labels)
+    classMat = np.zeros(shape=(labels_len, labels_len))
+
+    for i in range(labels_len):
+        gt = labels[i]
+        for j in range(labels_len):
+            if gt!=labels[j]:
+                classMat[i,j] = 1
+
+    np.save(outName, classMat.astype(np.float32))
         
 if __name__ == "__main__":
     # getBWPics()
@@ -554,9 +566,11 @@ if __name__ == "__main__":
     
     # unzipper(('D:\\Backups\\CS231N_data\\scraped\\compressed_26', 'tmp4'))
     
-    repackH5('../data/line', outputDir='../data/line_classification_lch', colorMap='lch', compression='lzf')
+    # repackH5('../data/line', outputDir='../data/line_classification_lch', colorMap='lch', compression='lzf')
 
     # gatherClassImbalanceInfo('../data/line_classification_lch/', 'class_imbalance_lch')
     # gatherClassImbalanceInfo('../data/line_classification/test', 'class_imbalance')
+
+    # createClassMatrix('chroma_matrix')
         
     pass

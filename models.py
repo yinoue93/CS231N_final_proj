@@ -182,17 +182,16 @@ class ZhangNet(Model):
         elif self.config.color_space=='lch':
             # convert from 255 scale to the appropriate scale for lch, and then convert to rgb
             # treat H differently because it is a circular value (ref: https://en.wikipedia.org/wiki/Mean_of_circular_quantities)
-            # H = tf.reduce_sum(self.CLASS_MAP_B * probabilities, axis=2)
-            hAngles = self.CLASS_MAP_B * probabilities
-            H = tf.atan2(tf.reduce_sum(tf.sin(hAngles), axis=2), tf.reduce_sum(tf.sin(hAngles), axis=2))
+            hAngles = self.CLASS_MAP_B * (2*np.pi)/255.0
+            H = atan2(tf.reduce_sum(tf.cos(hAngles) * probabilities, axis=2), 
+                      tf.reduce_sum(tf.sin(hAngles) * probabilities, axis=2))
 
-            out_img = tf.stack((tf.reduce_sum(self.CLASS_MAP_R * probabilities, axis=2), 
-                                tf.reduce_sum(self.CLASS_MAP_G * probabilities, axis=2), 
+            out_img = tf.stack((tf.reduce_sum(self.CLASS_MAP_R * probabilities, axis=2) * 100/255.0, 
+                                tf.reduce_sum(self.CLASS_MAP_G * probabilities, axis=2) * CHROMA_MAX/255.0, 
                                 H), axis=2)
 
             out_img = tf.reshape(out_img, shape=[batch_sz, out_img_dim, out_img_dim, 3])
 
-            out_img *= [100/255.0, CHROMA_MAX/255.0, (2*np.pi)/255.0]
             out_img = tf.reshape(tf.py_func(lch2rgb_batch, [out_img], Tout=tf.float32), shape=tf.shape(out_img))
 
         out_img = tf.image.resize_images(out_img, size=[IMG_DIM,IMG_DIM], method=tf.image.ResizeMethod.BILINEAR)
@@ -236,7 +235,16 @@ class ZhangNet(Model):
             weight_vec = tf.gather(params=class_weights, indices=max_indx)
             xloss = tf.reshape(xloss, shape=[tf.shape(xloss)[0], int((IMG_DIM)/4)**2])
 
-            self.loss_op = tf.reduce_mean(tf.multiply(xloss, weight_vec))
+            chroma_weights = tf.constant(np.load(CHROMA_MATRIX_FILE), dtype=tf.float32)
+            outPShape = tf.shape(self.output_placeholder)
+            outShape = tf.shape(self.layers['output'])
+            outputP_reshaped = tf.reshape(self.output_placeholder, shape=[outPShape[0]*outPShape[1], outPShape[2]])
+            output_reshaped = tf.reshape(self.layers['output'], shape=[outShape[0]*outShape[1]*outShape[2], outShape[3]])
+            
+            chroma_loss = tf.reduce_sum(tf.matmul(outputP_reshaped, chroma_weights) * output_reshaped, axis=1)
+
+            total_loss = xloss + LOSS_MIX_TERM*chroma_loss
+            self.loss_op = tf.reduce_mean(tf.multiply(total_loss, weight_vec))
         else:
             self.loss_op = tf.reduce_mean(xloss)
 

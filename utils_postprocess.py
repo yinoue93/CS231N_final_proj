@@ -4,10 +4,12 @@ import tensorflow as tf
 import os
 
 from constants import *
+from utils_misc import *
 
 import re
 from PIL import Image
 from scipy.misc import imread,imsave,toimage,imresize
+
 def GT2illustration(dirName, outdir):
     fnames = [os.path.join(dirName, fname) for fname in os.listdir(dirName)]
     gtNames = []
@@ -52,15 +54,23 @@ def fnames2Tile(fnames, shape, outName):
             tileImg[y_start:y_end, x_start:x_end] = imread(fnames[count]).astype(float)
 
             count += 1
+            if count==len(fnames):
+                break
+        if count==len(fnames):
+            break
 
     toimage(tileImg, cmin=0, cmax=255).save(outName)
 
-def modelOutputs2Tile(inDir, outDir, outPrefix, shape):
+def getOutImgNames(inDir, ids=[]):
     fnames = [os.path.join(inDir, fname) for fname in os.listdir(inDir)]
 
     gtNames,inNames,ovNames,preNames = [],[],[],[]
 
     for fname in fnames:
+        if ids!=[]:
+            if int(re.search('[0-9]+', re.search('[0-9]+.jpg', fname).group(0)).group(0)) not in ids:
+                continue
+
         if re.search('gt[0-9]+.jpg', fname)!=None:
             gtNames.append(fname)
         elif re.search('input[0-9]+.jpg', fname)!=None:
@@ -70,10 +80,41 @@ def modelOutputs2Tile(inDir, outDir, outPrefix, shape):
         elif re.search('predicted[0-9]+.jpg', fname)!=None:
             preNames.append(fname)
 
+    return gtNames,inNames,ovNames,preNames
+
+
+def modelOutputs2Tile(inDir, outDir, outPrefix, shape, ids=[]):
+    gtNames,inNames,ovNames,preNames = getOutImgNames(inDir, ids)
+
     fnames2Tile(gtNames, shape+(3,), os.path.join(outDir, outPrefix+'_gt.jpg'))
     fnames2Tile(inNames, shape, os.path.join(outDir, outPrefix+'_input.jpg'))
     fnames2Tile(ovNames, shape+(3,), os.path.join(outDir, outPrefix+'_overlay.jpg'))
     fnames2Tile(preNames, shape+(3,), os.path.join(outDir, outPrefix+'_predicted.jpg'))
+
+def imgStats(inDir):
+    # gtNames,inNames,ovNames,preNames = getOutImgNames(inDir)
+    gtNames = ['../results/imgs/all_samples/zhang_class_lch/1239580_0_gt114.jpg']
+    preNames = ['../results/imgs/all_samples/zhang_class_lch/1239580_0_predicted114.jpg']
+    num_imgs = len(gtNames)
+
+    gt_stats = [0,0,0]
+    pred_stats = [0,0,0]
+
+    for i in range(num_imgs):
+        if i%10==0:
+            print('.')
+        gtImg = rgb2lch(imread(gtNames[i]).astype(float))
+        predImg = rgb2lch(imread(preNames[i]).astype(float))
+
+        gtImg = gtImg[180:,180:,:]
+        predImg = predImg[180:,180:,:]
+
+        for c in range(3):
+            gt_stats[c] += np.mean(gtImg[:,:,c])
+            pred_stats[c] += np.mean(predImg[:,:,c])
+
+    print([val/num_imgs for val in gt_stats])
+    print([val/num_imgs for val in pred_stats])
 
 #----------------------------Weights visualizations-------------------------------
 
@@ -166,12 +207,19 @@ def visualize_grid(Xs, ubound=255.0, padding=1):
 
         
 if __name__ == "__main__":
-    # modelOutputs2Tile('../results/imgs/new_samples/unet', '../images/img_tiles', 'unet', shape=(3,6))
-    # modelOutputs2Tile('../results/imgs/new_samples/zhang_no_cl', '../images/img_tiles', 'zhang_no_cl', shape=(3,6))
-    # modelOutputs2Tile('../results/imgs/new_samples/zhang_cl', '../images/img_tiles', 'zhang_cl', shape=(3,6))
+    # ids = [32, 74, 81, 94, 131, 196, 237, 249]
+    # ids = [12, 28, 24, 32, 74, 81, 82, 94, 116, 146, 195, 197, 213, 223, 249, 245, 237, 109]
+    # ids = range(250)
+    # modelOutputs2Tile('../results/imgs/all_samples/unet', '../images/img_tiles_large', 'unet', shape=(16,16), ids=ids)
+    # modelOutputs2Tile('../results/imgs/all_samples/zhang_no_class', '../images/img_tiles_large', 'zhang_no_cl', shape=(16,16), ids=ids)
+    # modelOutputs2Tile('../results/imgs/all_samples/zhang_class', '../images/img_tiles_large', 'zhang_cl', shape=(16,16), ids=ids)
+    # modelOutputs2Tile('../results/imgs/all_samples/zhang_class_lch', '../images/img_tiles_large', 'zhang_cl_lch', shape=(16,16), ids=ids)
 
-    # GT2illustration('../results/imgs/new_samples/zhang_no_cl', '../results/imgs/new_samples/gt')
+    # GT2illustration('../results/imgs/all_samples/zhang_no_class', '../results/imgs/all_samples/gt')
 
-    # fnames2Tile([os.path.join('../results/imgs/new_samples/gt', fname) for fname in os.listdir('../results/imgs/new_samples/gt')], 
-    #              shape=(3,6,3), outName='../images/img_tiles/gt_overlay.jpg')
+    # gtNames,_,_,_ = getOutImgNames('../results/imgs/all_samples/gt', ids)
+    # fnames2Tile(gtNames, (16,16,3), '../images/img_tiles_large/gt_overlay.jpg')
+
+    # imgStats('../results/imgs/all_samples/zhang_class_lch')
+
     pass
