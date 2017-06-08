@@ -359,24 +359,11 @@ def h52numpy(hdf5Filename, checkMean=False, batch_sz=1, mod_output=False, iter_v
             count += 1
 
     # fix up the sketch input
-    kernel = np.ones((8,8),np.float32)/64
-    neiborhood8 = np.array([[1, 1, 1],
-                            [1, 1, 1],
-                            [1, 1, 1]],
-                            np.uint8)
-
     num_inputs = inData.shape[0]
     for i in range(num_inputs):
         img_line = inData[i,:,:].astype(np.uint8)
-        img_line = cv2.filter2D(img_line,-1,kernel)
-        img_line = cv2.dilate(img_line, neiborhood8, iterations=1)
-
         _,img_line = cv2.threshold(img_line, 0, 255, cv2.THRESH_BINARY+cv2.THRESH_OTSU)
-
-        img_line_tmp = np.zeros_like(img_line)
-        img_line_tmp[img_line>200] = 255
-        inData[i,:,:] = img_line_tmp
-    print(inData.dtype)
+        inData[i,:,:] = img_line
     
     inData = inData - input_mean
     inData = np.expand_dims(inData, axis=3)

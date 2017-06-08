@@ -141,7 +141,7 @@ def run_model(modelStr, runMode, ckptDir, dataDir, sampleDir, overrideCkpt, numE
                     count = 0
                     for dataIndx in range(0, len(imgNames), batch_size):
                         in_batch = input_batches[dataIndx:dataIndx+batch_size]
-                        if output_batches==None:
+                        if output_batches is None:
                             out_batch = None
                         else:
                             out_batch = output_batches[dataIndx:dataIndx+batch_size]
