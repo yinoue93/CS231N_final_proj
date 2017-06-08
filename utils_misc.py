@@ -7,10 +7,12 @@ import h5py
 import scipy
 import math
 import shutil
+import cv2
 
 import skimage.color as color
 
 from constants import *
+from utils_rgb2line import processPic
 
 from shutil import copyfile
 from scipy.misc import imread,imsave,toimage,imresize
@@ -276,12 +278,34 @@ def h52numpy(hdf5Filename, checkMean=False, batch_sz=1, mod_output=False, iter_v
     """
     Returns a shuffled list of input and output data, with each element of the list
     numpy array of shape (batch_sz, H, W, C)
-    """
+    """ 
 
-    if 'line' in hdf5Filename:
-        input_mean = LINE_MEAN
-    elif 'binary' in hdf5Filename:
+    # check if @hdf5Filename is hdf5 file by checking if it is an array
+    if type(hdf5Filename)==list:
+        # @hdf5Filename is actually a folder full of raw images
+        print('h52numpy: hdf5Filename is a raw image folder')
+        inData = np.empty(shape=(len(hdf5Filename), IMG_DIM, IMG_DIM, 1), dtype=np.float16)
+        outData = None
+        fileNames = []
+
+        inDir = hdf5Filename[0][:hdf5Filename[0].rfind('\\')]
+        for i,fname in enumerate(hdf5Filename):
+            filename = fname[(fname.rfind('\\')+1):]
+            fileNames.append(filename)
+
+            dataPack = (inDir, filename, False, False)
+            print(filename)
+            inData[i,:,:,0],_ = processPic(dataPack)
+
+        inData -= LINE_MEAN
+        return inData, None, fileNames
+
+
+    # @hdf5Filename is an hdf5 file
+    if 'binary' in hdf5Filename:
         input_mean = BINARY_MEAN
+    else:
+        input_mean = LINE_MEAN
         
     meanTotal = np.asarray([0]*4)
     count = 0
@@ -333,6 +357,26 @@ def h52numpy(hdf5Filename, checkMean=False, batch_sz=1, mod_output=False, iter_v
                 fileNames[-1] += '.jpg'
                 
             count += 1
+
+    # fix up the sketch input
+    kernel = np.ones((8,8),np.float32)/64
+    neiborhood8 = np.array([[1, 1, 1],
+                            [1, 1, 1],
+                            [1, 1, 1]],
+                            np.uint8)
+
+    num_inputs = inData.shape[0]
+    for i in range(num_inputs):
+        img_line = inData[i,:,:].astype(np.uint8)
+        img_line = cv2.filter2D(img_line,-1,kernel)
+        img_line = cv2.dilate(img_line, neiborhood8, iterations=1)
+
+        _,img_line = cv2.threshold(img_line, 0, 255, cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+
+        img_line_tmp = np.zeros_like(img_line)
+        img_line_tmp[img_line>200] = 255
+        inData[i,:,:] = img_line_tmp
+    print(inData.dtype)
     
     inData = inData - input_mean
     inData = np.expand_dims(inData, axis=3)

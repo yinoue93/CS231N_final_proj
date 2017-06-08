@@ -74,6 +74,16 @@ def run_model(modelStr, runMode, ckptDir, dataDir, sampleDir, overrideCkpt, numE
     else:
         logDir,logName = createLog(runMode)
 
+    # get the data file names and check if the @dataDir is a hdf5 file
+    if is_training:
+        dataset_filenames = getDataFileNames(dataDir, excludeFnames=['.filepart', 'test'])
+    else:
+        dataset_filenames = getDataFileNames(dataDir, excludeFnames=['.filepart'])
+    if ('.jpg' in dataset_filenames[0]) or ('.png' in dataset_filenames[0]):
+        print('The input data is detected to be raw images')
+        NUM_SAMPLES = len(dataset_filenames)
+        dataset_filenames = [dataset_filenames]
+
     printSeparator('Starting TF session')
     with tf.Session(config=GPU_CONFIG) as sess:
         print("Inititialized TF Session!")
@@ -102,10 +112,6 @@ def run_model(modelStr, runMode, ckptDir, dataDir, sampleDir, overrideCkpt, numE
             numEpochs = i_stopped + 1
 
         # run the network
-        if is_training:
-            dataset_filenames = getDataFileNames(dataDir, excludeFnames=['.filepart', 'test'])
-        else:
-            dataset_filenames = getDataFileNames(dataDir, excludeFnames=['.filepart'])
         for epochCounter in range(i_stopped, numEpochs):
             batch_loss = []
             printSeparator("Running epoch %d" % epochCounter)
@@ -116,17 +122,18 @@ def run_model(modelStr, runMode, ckptDir, dataDir, sampleDir, overrideCkpt, numE
                 for iter_val in range(DATA_LOAD_PARTITION):
                     # Get data
                     print('Reading data in %s, iter_val: %d...' % (data_file, iter_val))
-                    try:
-                        if runMode=='sample' and PAPER_IMG_NAMES!=None:
-                            input_batches,output_batches,imgNames = h52numpy(data_file, batch_sz=batch_size, iter_val=iter_val, 
-                                                                             mod_output=(modelStr=='zhangnet'), fileNames=PAPER_IMG_NAMES)
-                            print(input_batches.shape)
-                        else:
-                            input_batches,output_batches,imgNames = h52numpy(data_file, batch_sz=batch_size, iter_val=iter_val, 
-                                                                                 mod_output=(modelStr=='zhangnet'))
-                    except:
-                        logToFile(logName, "File reading failed...")
-                        continue
+                    # try:
+                    if runMode=='sample' and PAPER_IMG_NAMES!=None:
+                        input_batches,output_batches,imgNames = h52numpy(data_file, batch_sz=batch_size, 
+                                                                         iter_val=iter_val, mod_output=(modelStr=='zhangnet'), 
+                                                                         fileNames=PAPER_IMG_NAMES)
+                        print(input_batches.shape)
+                    else:
+                        input_batches,output_batches,imgNames = h52numpy(data_file, batch_sz=batch_size, iter_val=iter_val, 
+                                                                             mod_output=(modelStr=='zhangnet'))
+                    # except:
+                    #     logToFile(logName, "File reading failed...")
+                    #     continue
                     print('Done reading, running the network (%d of %d)' % (j+1, len(dataset_filenames)))
 
                     bar = progressbar.ProgressBar(maxval=int(len(input_batches)/batch_size))
@@ -134,7 +141,10 @@ def run_model(modelStr, runMode, ckptDir, dataDir, sampleDir, overrideCkpt, numE
                     count = 0
                     for dataIndx in range(0, len(imgNames), batch_size):
                         in_batch = input_batches[dataIndx:dataIndx+batch_size]
-                        out_batch = output_batches[dataIndx:dataIndx+batch_size]
+                        if output_batches==None:
+                            out_batch = None
+                        else:
+                            out_batch = output_batches[dataIndx:dataIndx+batch_size]
                         imgName = imgNames[dataIndx:dataIndx+batch_size]
                         
                         # look at the images in the dataset (for debug usage)
@@ -292,6 +302,7 @@ if __name__ == "__main__":
                         type=str, help='Set the checkpoint directory')
     parser.add_argument('-sample', dest='sample_dir', default=SAMPLE_OUT_DIR, 
                         type=str, help='Set the sample output directory')
+
 
     args = parser.parse_args()
     #-------------------end parse arg---------------------

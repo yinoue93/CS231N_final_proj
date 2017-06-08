@@ -67,22 +67,31 @@ class Model(object):
 
         feed_dict = {
             self.is_train           : False,
-            self.input_placeholder  : in_batch,
-            self.output_placeholder : out_batch
+            self.input_placeholder  : in_batch
         }
 
+        if out_batch is None:
+            in_img, pred_img, pred_overlay_img = sess.run([self.visual['input'], self.visual['predicted'], 
+                                                           self.visual['predicted_overlay']], feed_dict=feed_dict)
+            summary_img = None
+        else:
+            feed_dict[self.output_placeholder] = out_batch
+            in_img, gt_img, pred_img, pred_overlay_img, \
+                    summary_img, loss = sess.run([self.visual['input'], self.visual['ground_truth'], 
+                                                  self.visual['predicted'], self.visual['predicted_overlay'], 
+                                                  self.summary_img, self.loss_op], feed_dict=feed_dict)
 
-        in_img, gt_img, pred_img, pred_overlay_img, summary_img, loss = sess.run([self.visual['input'], self.visual['ground_truth'], 
-                                                                                  self.visual['predicted'], self.visual['predicted_overlay'], 
-                                                                                  self.summary_img, self.loss_op], feed_dict=feed_dict)
+
         in_img = in_img[:,:,:,0]
 
         if imgName!=None:
-            for iImg,gtImg,pImg,poImg,name in zip(in_img, gt_img, pred_img, pred_overlay_img, imgName):
-                toimage(iImg, cmin=0, cmax=255).save(name.replace('.jpg', '_input%d.jpg'%self.fnameMod))
-                toimage(gtImg, cmin=0, cmax=255).save(name.replace('.jpg', '_gt%d.jpg'%self.fnameMod))
-                toimage(pImg, cmin=0, cmax=255).save(name.replace('.jpg', '_predicted%d.jpg'%self.fnameMod))
-                toimage(poImg, cmin=0, cmax=255).save(name.replace('.jpg', '_overlay%d.jpg'%self.fnameMod))
+            for i in range(len(in_img)):
+                name = imgName[i]
+                toimage(in_img[i], cmin=0, cmax=255).save(name.replace('.jpg', '_input%d.jpg'%self.fnameMod))
+                toimage(pred_img[i], cmin=0, cmax=255).save(name.replace('.jpg', '_predicted%d.jpg'%self.fnameMod))
+                toimage(pred_overlay_img[i], cmin=0, cmax=255).save(name.replace('.jpg', '_overlay%d.jpg'%self.fnameMod))
+                if out_batch is not None:
+                    toimage(gt_img[i], cmin=0, cmax=255).save(name.replace('.jpg', '_gt%d.jpg'%self.fnameMod))
 
         self.fnameMod += 1
         return summary_img
